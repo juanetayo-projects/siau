@@ -1,5 +1,66 @@
-import Proximamente from '../../components/Proximamente'
+import { useEffect, useMemo, useState } from 'react'
+import ReactECharts from 'echarts-for-react'
+import { supabase } from '../../lib/supabase'
+import { useHeatmapColores, construirGrilla, DIAS, HORAS } from '../../lib/heatmap'
+import { PageHeader, Spinner, Modal, Tabla, THead, TH, TR, TD } from '../../components/ui'
+
+type Fila = { id: number; nombre_completo: string | null; servicio: string | null; p4_experiencia_global: string | null; fecha: string }
 
 export default function MapaCalorSatisfaccion() {
-  return <Proximamente titulo="Mapa de Calor Satisfacción" />
+  const colores = useHeatmapColores('satisfaccion')
+  const [filas, setFilas] = useState<Fila[] | null>(null)
+  const [sel, setSel] = useState<{ dia: number; hora: number } | null>(null)
+
+  useEffect(() => {
+    void supabase.from('satisfaccion_respuestas').select('id,nombre_completo,servicio,p4_experiencia_global,fecha')
+      .then(({ data }) => setFilas((data ?? []) as Fila[]))
+  }, [])
+
+  const { data, max, celdas } = useMemo(() => construirGrilla((filas ?? []).map((f) => f.fecha)), [filas])
+
+  const detalle = useMemo(() => {
+    if (!sel || !filas) return []
+    const idxs = celdas[`${sel.dia}-${sel.hora}`] ?? []
+    return idxs.map((i) => filas[i])
+  }, [sel, filas, celdas])
+
+  if (!filas) return <Spinner texto="Cargando mapa de calor…" />
+
+  const option = {
+    tooltip: {
+      position: 'top',
+      formatter: (p: any) => `${DIAS[p.value[1]]} · ${p.value[0]}:00<br/><b>${p.value[2]}</b> encuesta(s)<br/><span style="font-size:10px;color:#888">Clic para ver el detalle</span>`,
+    },
+    grid: { left: 50, right: 10, top: 10, bottom: 60 },
+    xAxis: { type: 'category', data: HORAS.map((h) => `${h}h`), splitArea: { show: true }, axisLabel: { fontSize: 10 } },
+    yAxis: { type: 'category', data: DIAS, splitArea: { show: true }, axisLabel: { fontSize: 11 } },
+    visualMap: { min: 0, max: Math.max(max, 1), calculable: true, orient: 'horizontal', left: 'center', bottom: 0, inRange: { color: colores }, itemHeight: 80, textStyle: { fontSize: 10 } },
+    series: [{ name: 'Satisfacción', type: 'heatmap', data, label: { show: false }, itemStyle: { borderColor: '#fff', borderWidth: 1 } }],
+  }
+  const onEvents = { click: (p: any) => { const [h, d, v] = p.value as [number, number, number]; if (v > 0) setSel({ dia: d, hora: h }) } }
+
+  return (
+    <div>
+      <PageHeader titulo="Mapa de Calor Satisfacción" subtitulo="Distribución de encuestas por día de la semana y hora de registro" />
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+        <ReactECharts option={option} style={{ height: 340, width: '100%' }} notMerge onEvents={onEvents} />
+      </div>
+
+      <Modal open={!!sel} onClose={() => setSel(null)} titulo={sel ? `Satisfacción · ${DIAS[sel.dia]} a las ${sel.hora}:00 (${detalle.length})` : ''} ancho="max-w-3xl">
+        <Tabla>
+          <THead><tr><TH>Paciente</TH><TH>Servicio</TH><TH>Experiencia</TH></tr></THead>
+          <tbody>
+            {detalle.map((f, i) => (
+              <TR key={f.id} i={i}>
+                <TD>{f.nombre_completo || '—'}</TD>
+                <TD>{f.servicio || '—'}</TD>
+                <TD>{f.p4_experiencia_global || '—'}</TD>
+              </TR>
+            ))}
+            {detalle.length === 0 && <TR><TD className="text-slate-400">Sin registros.</TD></TR>}
+          </tbody>
+        </Tabla>
+      </Modal>
+    </div>
+  )
 }

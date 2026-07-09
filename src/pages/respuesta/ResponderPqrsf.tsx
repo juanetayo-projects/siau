@@ -327,18 +327,24 @@ export default function ResponderPqrsf() {
             <div className="pqf-step-header"><span className="pqf-step-num">4</span>
               <div><h2>Resumen de la respuesta</h2><p>Verifique antes de enviar</p></div>
             </div>
-            <div className="pqf-kv-grid">
-              <Fila l="Radicado" v={`PQRSF-${String(reporte.id).padStart(6, '0')}`} />
-              <Fila l="Tipo de solicitud" v={reporte.tipo_reporte} />
-              <Fila l="Paciente" v={reporte.nombre_paciente} />
-              <Fila l="Correo paciente" v={reporte.email_reporta || 'No registrado'} />
-              <Fila l="Fecha de respuesta" v={fechaRespuesta} />
-              <Fila l="Respondido por" v={respondidoPor} />
-              <Fila l="Correo responsable" v={correoResponsable || '—'} />
-              <Fila l="Colaborador involucrado" v={colaborador || '—'} />
-              {archivo && <Fila l="Archivo adjunto" v={`${archivo.name} (${(archivo.size / 1024).toFixed(0)} KB)`} />}
-              <div className="pqf-kv-label">Respuesta oficial</div>
-              <div className="pqf-kv-value full">{respuestaTexto}</div>
+            <div className="pqf-summary-grid">
+              {[
+                ['Radicado', `PQRSF-${String(reporte.id).padStart(6, '0')}`],
+                ['Tipo de solicitud', reporte.tipo_reporte], ['Paciente', reporte.nombre_paciente],
+                ['Correo paciente', reporte.email_reporta || 'No registrado'],
+                ['Fecha de respuesta', fechaRespuesta], ['Respondido por', respondidoPor],
+                ['Correo responsable', correoResponsable || '—'], ['Colaborador involucrado', colaborador || '—'],
+                ['Archivo adjunto', archivo ? `${archivo.name} (${(archivo.size / 1024).toFixed(0)} KB)` : '—'],
+              ].map(([label, value]) => (
+                <div key={label} className="pqf-summary-item">
+                  <div className="s-label">{label}</div>
+                  <div className="s-value">{value}</div>
+                </div>
+              ))}
+              <div className="pqf-summary-item full">
+                <div className="s-label">Respuesta oficial</div>
+                <div className="s-value">{respuestaTexto}</div>
+              </div>
             </div>
             {errorEnvio && <p className="pqf-error">⚠ {errorEnvio}</p>}
           </div>
@@ -358,7 +364,4 @@ export default function ResponderPqrsf() {
 
 function Campo({ l, v }: { l: string; v: string | null | undefined }) {
   return <div className="pqf-record-field"><div className="pqf-record-label">{l}</div><div className={`pqf-record-value${!v ? ' empty' : ''}`}>{v || '—'}</div></div>
-}
-function Fila({ l, v }: { l: string; v: string | null | undefined }) {
-  return <><div className="pqf-kv-label">{l}</div><div className="pqf-kv-value">{v || '—'}</div></>
 }

@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useSurveyData } from '../../hooks/useSurveyData'
 import { SEDES, SERVICIOS, RATING_COLORS, EXPERIENCIA_COLORS } from '../../lib/satisfaccion'
 import { PageHeader, FilterBar, Campo, Input, Select, Boton, Tabla, THead, TH, TR, TD, Modal, Spinner } from '../../components/ui'
+import CompartirEncuesta from '../../components/CompartirEncuesta'
 
 function RatingBadge({ value }: { value: number | null }) {
   if (!value) return <span className="text-slate-300">—</span>
@@ -39,7 +40,7 @@ export default function GestionSatisfaccion() {
 
   return (
     <div>
-      <PageHeader titulo="Gestión Satisfacción" subtitulo={`${total.toLocaleString()} encuestas registradas`} />
+      <PageHeader titulo="Gestión Satisfacción" subtitulo={`${total.toLocaleString()} encuestas registradas`} acciones={<CompartirEncuesta />} />
 
       <FilterBar>
         <Campo label="Buscar" className="min-w-56">
