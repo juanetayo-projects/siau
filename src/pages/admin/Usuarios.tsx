@@ -49,7 +49,7 @@ export default function Usuarios() {
   if (!usuarios) return <Spinner texto="Cargando usuarios…" />
 
   return (
-    <div>
+    <div className="mx-auto max-w-3xl">
       <PageHeader titulo="Usuarios" subtitulo={`${usuarios.length} usuarios en consola`}
         acciones={<Boton onClick={() => setCreando(true)}>+ Nuevo usuario</Boton>} />
 
