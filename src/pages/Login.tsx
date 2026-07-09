@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/auth'
 import { Boton, Input } from '../components/ui'
 
 type Modo = 'ingresar' | 'recuperar'
@@ -7,6 +9,8 @@ const LOGO = `${import.meta.env.BASE_URL}images/logo_cacsb2.png`
 const LOGO_BLANCO = `${import.meta.env.BASE_URL}images/logo_cacsb_blanc.png`
 
 export default function Login() {
+  const { session, loading } = useAuth()
+  const nav = useNavigate()
   const [modo, setModo] = useState<Modo>('ingresar')
   const [email, setEmail] = useState('')
   const [pass, setPass] = useState('')
@@ -15,6 +19,8 @@ export default function Login() {
   const [cargando, setCargando] = useState(false)
   const [verPass, setVerPass] = useState(false)
 
+  if (!loading && session) return <Navigate to="/" replace />
+
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
     setErr(''); setMsg(''); setCargando(true)
@@ -22,6 +28,7 @@ export default function Login() {
       if (modo === 'ingresar') {
         const { error } = await supabase.auth.signInWithPassword({ email, password: pass })
         if (error) throw new Error('Credenciales inválidas o usuario no confirmado.')
+        nav('/', { replace: true })
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}#/restablecer`,
