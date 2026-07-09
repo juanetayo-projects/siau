@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { PageHeader, Boton, Spinner } from '../../components/ui'
 import CatalogoEditor from '../../components/CatalogoEditor'
 
-const TABLAS = [
+const TABLAS_RESUMEN = [
   { t: 'reportes_pqrsf', icono: '📥', color: '#2471c8' },
   { t: 'respuestas_pqrsf', icono: '↩️', color: '#16a34a' },
   { t: 'satisfaccion_respuestas', icono: '🙂', color: '#8b5cf6' },
@@ -20,6 +20,20 @@ const TABLAS = [
   { t: 'especialidades', icono: '📋', color: '#8b5cf6' },
 ]
 
+// Mismo orden y nombres del módulo "Tablas maestras" original de pqrsf-consola.
+const CATALOGOS = [
+  { tabla: 'especialidades', label: 'Especialidades', tieneOrden: false },
+  { tabla: 'lista_convenios', label: 'Convenios / EPS' },
+  { tabla: 'lista_entidades', label: 'Entidades' },
+  { tabla: 'lista_fallas', label: 'Fallas / Atributos', campoExtra: { key: 'grupo' as const, label: 'Grupo' } },
+  { tabla: 'lista_fuentes', label: 'Fuentes' },
+  { tabla: 'lista_procesos', label: 'Procesos / Servicios', campoExtra: { key: 'correo' as const, label: 'Correo de notificación' } },
+  { tabla: 'lista_regimen', label: 'Régimen' },
+  { tabla: 'lista_sedes', label: 'Sedes' },
+  { tabla: 'lista_tipo_reporte', label: 'Tipo de reporte' },
+  { tabla: 'lista_tipo_usuario', label: 'Tipo de usuario' },
+]
+
 function ResumenTablas() {
   const [conteos, setConteos] = useState<Record<string, number | null> | null>(null)
   const [cargando, setCargando] = useState(false)
@@ -27,10 +41,10 @@ function ResumenTablas() {
   async function cargar() {
     setCargando(true)
     const resultados = await Promise.all(
-      TABLAS.map(({ t }) => supabase.from(t).select('id', { count: 'exact', head: true })),
+      TABLAS_RESUMEN.map(({ t }) => supabase.from(t).select('id', { count: 'exact', head: true })),
     )
     const mapa: Record<string, number | null> = {}
-    TABLAS.forEach(({ t }, i) => { mapa[t] = resultados[i].error ? null : (resultados[i].count ?? 0) })
+    TABLAS_RESUMEN.forEach(({ t }, i) => { mapa[t] = resultados[i].error ? null : (resultados[i].count ?? 0) })
     setConteos(mapa)
     setCargando(false)
   }
@@ -51,7 +65,7 @@ function ResumenTablas() {
               </tr>
             </thead>
             <tbody>
-              {TABLAS.map(({ t, icono, color }) => {
+              {TABLAS_RESUMEN.map(({ t, icono, color }) => {
                 const n = conteos[t]
                 return (
                   <tr key={t} className="border-t border-slate-50">
@@ -65,14 +79,14 @@ function ResumenTablas() {
           </table>
         </div>
       )}
-      <div className="m-4 rounded-lg bg-[#EAF0FA] p-3 text-xs leading-relaxed text-slate-600">
-        ℹ️ Los catálogos (listas desplegables de los formularios PQRSF) se administran más abajo, en <b>Catálogos</b>.
-      </div>
     </div>
   )
 }
 
 export default function TablasMaestrasResumen() {
+  const [activo, setActivo] = useState(CATALOGOS[0].tabla)
+  const catalogo = CATALOGOS.find((c) => c.tabla === activo)!
+
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader titulo="Tablas maestras · Resumen" subtitulo="Estado de las tablas y catálogos usados en PQRSF y Satisfacción" />
@@ -80,19 +94,18 @@ export default function TablasMaestrasResumen() {
         <ResumenTablas />
 
         <div>
-          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#0D2D6B]">Catálogos</h2>
-          <div className="space-y-3">
-            <CatalogoEditor tabla="lista_tipo_reporte" label="Tipos de PQRSF" />
-            <CatalogoEditor tabla="lista_entidades" label="Entidades" />
-            <CatalogoEditor tabla="lista_sedes" label="Sedes" />
-            <CatalogoEditor tabla="lista_procesos" label="Procesos / Servicios" campoExtra={{ key: 'correo', label: 'Correo de notificación' }} />
-            <CatalogoEditor tabla="lista_fuentes" label="Fuentes" />
-            <CatalogoEditor tabla="lista_tipo_usuario" label="Tipos de usuario" />
-            <CatalogoEditor tabla="lista_convenios" label="Convenios / EPS" />
-            <CatalogoEditor tabla="lista_regimen" label="Régimen" />
-            <CatalogoEditor tabla="lista_fallas" label="Fallas / Atributos" campoExtra={{ key: 'grupo', label: 'Grupo' }} />
-            <CatalogoEditor tabla="especialidades" label="Especialidades" tieneOrden={false} />
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#0D2D6B]">Tablas maestras</h2>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {CATALOGOS.map((c) => (
+              <button key={c.tabla} onClick={() => setActivo(c.tabla)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  activo === c.tabla ? 'bg-[#0D2D6B] text-white' : 'border border-slate-200 bg-white text-slate-600 hover:border-[#16468E] hover:text-[#16468E]'
+                }`}>
+                {c.label}
+              </button>
+            ))}
           </div>
+          <CatalogoEditor key={catalogo.tabla} tabla={catalogo.tabla} label={catalogo.label} campoExtra={catalogo.campoExtra} tieneOrden={catalogo.tieneOrden} />
         </div>
       </div>
     </div>
