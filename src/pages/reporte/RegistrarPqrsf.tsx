@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
-import { Boton, Input, Select, Textarea, Campo, PageHeader, Spinner } from '../../components/ui'
+import '../../styles/pqrsf-form.css'
 import {
   TIPO_REPORTE_UI, TIPO_USUARIO_UI, PLAZOS_RESPUESTA, FALLA_SEMAFORO, SEMAFORO_CFG,
   CAMPOS_PERMITIDOS_REPORTE, type ListaItem, type ListaProceso, type ListaFalla,
@@ -29,14 +29,119 @@ type Listas = {
   fallas: ListaFalla[]; especialidades: ListaItem[]
 }
 
-function agruparFallas(fallas: ListaFalla[]) {
-  const grupos: Record<string, string[]> = {}
-  fallas.forEach((f) => {
-    const g = f.grupo || 'Otros'
-    grupos[g] = grupos[g] ?? []
-    grupos[g].push(f.nombre)
+function agrupar<T extends { grupo?: string | null }>(items: T[]): Record<string, T[]> {
+  const g: Record<string, T[]> = {}
+  items.forEach((it) => {
+    const k = it.grupo || 'Otros'
+    g[k] = g[k] ?? []
+    g[k].push(it)
   })
-  return grupos
+  return g
+}
+
+/* ── Multi-select de Proceso con tags removibles ─────────────── */
+function ProcesoMultiSelect({ procesos, seleccion, onChange }: {
+  procesos: ListaProceso[]; seleccion: string[]; onChange: (v: string[]) => void
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function fuera(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false)
+    }
+    document.addEventListener('mousedown', fuera)
+    return () => document.removeEventListener('mousedown', fuera)
+  }, [])
+
+  function quitar(nombre: string) {
+    onChange(seleccion.filter((s) => s !== nombre))
+  }
+  function alternar(nombre: string) {
+    onChange(seleccion.includes(nombre) ? seleccion.filter((s) => s !== nombre) : [...seleccion, nombre])
+  }
+
+  return (
+    <div className="pqf-ms-wrap" ref={ref}>
+      <div className="pqf-ms-trigger" onClick={() => setAbierto((v) => !v)}>
+        {seleccion.length === 0 ? (
+          <span className="pqf-ms-placeholder">— Seleccione uno o más —</span>
+        ) : (
+          seleccion.map((s) => (
+            <span key={s} className="pqf-ms-tag">
+              {s}
+              <button type="button" className="pqf-ms-tag-remove" onClick={(e) => { e.stopPropagation(); quitar(s) }}>✕</button>
+            </span>
+          ))
+        )}
+      </div>
+      <span className={`pqf-ms-arrow${abierto ? ' open' : ''}`}>▾</span>
+      {abierto && (
+        <div className="pqf-ms-dropdown">
+          {procesos.length === 0 && <div className="pqf-ms-item">Sin opciones disponibles</div>}
+          {procesos.map((p) => (
+            <label key={p.nombre} className="pqf-ms-item">
+              <input type="checkbox" checked={seleccion.includes(p.nombre)} onChange={() => alternar(p.nombre)} />
+              {p.nombre}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Dropdown de Falla con semaforización ────────────────────── */
+function FallaSelect({ fallas, valor, onChange }: { fallas: ListaFalla[]; valor: string; onChange: (v: string) => void }) {
+  const [abierto, setAbierto] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const grupos = agrupar(fallas)
+
+  useEffect(() => {
+    function fuera(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false)
+    }
+    document.addEventListener('mousedown', fuera)
+    return () => document.removeEventListener('mousedown', fuera)
+  }, [])
+
+  const nivel = valor ? FALLA_SEMAFORO[valor] : undefined
+  const cfg = nivel ? SEMAFORO_CFG[nivel] : null
+
+  return (
+    <div className="pqf-falla-wrap" ref={ref}>
+      <div className="pqf-falla-trigger" onClick={() => setAbierto((v) => !v)}>
+        {valor && cfg ? (
+          <span className="pqf-falla-sel" style={{ background: cfg.bg, color: cfg.fg }}>
+            <span className="pqf-falla-dot" style={{ background: cfg.dot }} />{valor}
+          </span>
+        ) : (
+          <span className="pqf-falla-placeholder">— Seleccione —</span>
+        )}
+        <span className={`pqf-falla-arrow${abierto ? ' open' : ''}`}>▾</span>
+      </div>
+      {abierto && (
+        <div className="pqf-falla-dropdown">
+          {Object.entries(grupos).map(([grupo, items]) => (
+            <div key={grupo}>
+              <div className="pqf-falla-group">{grupo}</div>
+              {items.map((f) => {
+                const n = FALLA_SEMAFORO[f.nombre] ?? 'verde'
+                const c = SEMAFORO_CFG[n]
+                return (
+                  <div key={f.nombre} className="pqf-falla-item" onClick={() => { onChange(f.nombre); setAbierto(false) }}>
+                    <span className="pqf-falla-badge" style={{ background: c.bg, color: c.fg }}>
+                      <span className="pqf-falla-dot" style={{ background: c.dot }} />{f.nombre}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function RegistrarPqrsf() {
@@ -124,10 +229,6 @@ export default function RegistrarPqrsf() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  function toggleProceso(nombre: string) {
-    setProcesoSel((prev) => (prev.includes(nombre) ? prev.filter((p) => p !== nombre) : [...prev, nombre]))
-  }
-
   function onArchivo(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     if (!f) return
@@ -207,245 +308,269 @@ export default function RegistrarPqrsf() {
     setArchivo(null); setForm(FORM_INICIAL); setErrores({}); setErrorEnvio(''); setRadicado('')
   }
 
-  if (!listas) return <Spinner texto="Cargando formulario…" />
-
-  const fallasAgrupadas = agruparFallas(listas.fallas)
-  const nivelFalla = form.falla ? FALLA_SEMAFORO[form.falla] : undefined
-  const cfgFalla = nivelFalla ? SEMAFORO_CFG[nivelFalla] : null
+  if (!listas) return <p className="p-8 text-center text-slate-500">Cargando formulario…</p>
 
   if (step === 7) {
     return (
-      <div className="mx-auto max-w-xl rounded-2xl border border-emerald-200 bg-emerald-50 p-10 text-center shadow-md">
-        <p className="text-5xl">✅</p>
-        <h2 className="mt-3 text-xl font-bold text-emerald-800">¡PQRSF registrada exitosamente!</h2>
-        <p className="mt-2 text-sm text-emerald-700">Número de radicado</p>
-        <p className="mt-1 text-2xl font-mono font-bold text-[#0D2D6B]">{radicado}</p>
-        <Boton className="mt-6" onClick={reiniciar}>Registrar otra PQRSF</Boton>
+      <div className="pqf">
+        <div className="pqf-container">
+          <div className="pqf-step pqf-success">
+            <div className="pqf-success-circle">✓</div>
+            <h2>¡PQRSF registrada exitosamente!</h2>
+            <p>Su reporte fue registrado y será atendido dentro del plazo indicado. Puede hacer seguimiento con el número de radicado.</p>
+            <div className="pqf-ticket">
+              <span className="pqf-ticket-label">Número de radicado</span>
+              <span className="pqf-ticket-number">{radicado}</span>
+            </div>
+            <div>
+              <button className="pqf-btn pqf-btn-success" onClick={reiniciar}>Registrar otra PQRSF</button>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div>
-      <PageHeader titulo="Registrar PQRSF" subtitulo={`Paso ${step} de ${TOTAL_STEPS}${perfil ? ` · ${perfil.nombre}` : ''}`} />
+    <div className="pqf">
+      <h1 className="mb-1 text-lg font-bold text-[#0D2D6B]">Registrar PQRSF</h1>
+      <p className="mb-4 text-sm text-slate-500">{perfil ? `Registrado por ${perfil.nombre}` : ''}</p>
 
-      <div className="mb-5 h-2 w-full overflow-hidden rounded-full bg-slate-200">
-        <div className="h-full rounded-full bg-gradient-to-r from-[#0D2D6B] to-[#16468E] transition-all" style={{ width: `${((step - 1) / TOTAL_STEPS) * 100}%` }} />
-      </div>
+      <div className="pqf-container">
+        <div className="pqf-progress-wrap"><div className="pqf-progress-bar" style={{ width: `${((step - 1) / TOTAL_STEPS) * 100}%` }} /></div>
+        <div className="pqf-step-indicator">
+          {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((n) => (
+            <span key={n} className={`pqf-dot${n === step ? ' active' : n < step ? ' done' : ''}`} />
+          ))}
+        </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-md">
         {step === 1 && (
-          <div>
-            <h2 className="mb-4 text-base font-bold text-[#0D2D6B]">¿Qué tipo de PQRSF desea registrar?</h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="pqf-step">
+            <div className="pqf-step-header">
+              <span className="pqf-step-num">1</span>
+              <div><h2>¿Qué tipo de PQRSF desea registrar?</h2><p>Seleccione la categoría que mejor describe su manifestación</p></div>
+            </div>
+            <div className="pqf-type-grid">
               {listas.tipos.map((t) => {
                 const ui = TIPO_REPORTE_UI[t.nombre] ?? { icon: '📌', desc: '' }
                 const sel = tipoReporte === t.nombre
                 return (
-                  <button key={t.nombre} type="button" onClick={() => { setTipoReporte(t.nombre); setErrores((e) => ({ ...e, 1: '' })); setStep(2) }}
-                    className={`rounded-xl border-2 p-4 text-left transition ${sel ? 'border-[#16468E] bg-[#EAF0FA]' : 'border-slate-200 hover:border-slate-300'}`}>
-                    <div className="text-2xl">{ui.icon}</div>
-                    <div className="mt-1 font-semibold text-slate-800">{t.nombre}</div>
-                    <div className="mt-1 text-xs text-slate-500">{ui.desc}</div>
-                  </button>
+                  <div key={t.nombre} className={`pqf-type-card${sel ? ' sel' : ''}`}
+                    onClick={() => { setTipoReporte(t.nombre); setErrores((e) => ({ ...e, 1: '' })); setStep(2) }}>
+                    <div className={`pqf-type-icon ${TIPO_REPORTE_UI[t.nombre] ? colorDeTipo(t.nombre) : 'blue'}`}>{ui.icon}</div>
+                    <h3>{t.nombre}</h3><p>{ui.desc}</p>
+                  </div>
                 )
               })}
             </div>
-            {errores[1] && <p className="mt-3 text-sm text-rose-600">⚠ {errores[1]}</p>}
+            {errores[1] && <p className="pqf-error">⚠ {errores[1]}</p>}
           </div>
         )}
 
         {step === 2 && (
-          <div>
-            <h2 className="mb-4 text-base font-bold text-[#0D2D6B]">Información institucional</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Campo label="Entidad que recibe la PQRSF *">
-                <Select value={form.entidad} onChange={(e) => campo('entidad', e.target.value)}>
+          <div className="pqf-step">
+            <div className="pqf-step-header">
+              <span className="pqf-step-num">2</span>
+              <div><h2>Información institucional</h2><p>Datos de la entidad, sede y proceso involucrado</p></div>
+            </div>
+            <div className="pqf-grid">
+              <div className="pqf-field"><label>Entidad que recibe la PQRSF <span className="req">*</span></label>
+                <select value={form.entidad} onChange={(e) => campo('entidad', e.target.value)}>
                   <option value="">— Seleccione —</option>
                   {listas.entidades.map((x) => <option key={x.nombre} value={x.nombre}>{x.nombre}</option>)}
-                </Select>
-              </Campo>
-              <Campo label="Sede *">
-                <Select value={form.sede} onChange={(e) => campo('sede', e.target.value)}>
+                </select>
+              </div>
+              <div className="pqf-field"><label>Sede <span className="req">*</span></label>
+                <select value={form.sede} onChange={(e) => campo('sede', e.target.value)}>
                   <option value="">— Seleccione —</option>
                   {listas.sedes.map((x) => <option key={x.nombre} value={x.nombre}>{x.nombre}</option>)}
-                </Select>
-              </Campo>
-              <Campo label="Fecha de la manifestación *">
-                <Input type="date" value={form.fecha_manifestacion} onChange={(e) => campo('fecha_manifestacion', e.target.value)} />
-              </Campo>
-              <Campo label="Fuente *">
-                <Select value={form.fuente} onChange={(e) => campo('fuente', e.target.value)}>
+                </select>
+              </div>
+              <div className="pqf-field full"><label>Proceso / Servicio <span className="req">*</span></label>
+                <ProcesoMultiSelect procesos={listas.procesos} seleccion={procesoSel} onChange={setProcesoSel} />
+              </div>
+              <div className="pqf-field"><label>Fecha de la manifestación <span className="req">*</span></label>
+                <input type="date" value={form.fecha_manifestacion} onChange={(e) => campo('fecha_manifestacion', e.target.value)} />
+              </div>
+              <div className="pqf-field"><label>Fecha apertura del buzón</label>
+                <input type="date" value={form.fecha_apertura} onChange={(e) => campo('fecha_apertura', e.target.value)} />
+              </div>
+              <div className="pqf-field full"><label>Fuente <span className="req">*</span></label>
+                <select value={form.fuente} onChange={(e) => campo('fuente', e.target.value)}>
                   <option value="">— Seleccione —</option>
                   {listas.fuentes.map((x) => <option key={x.nombre} value={x.nombre}>{x.nombre}</option>)}
-                </Select>
-              </Campo>
-              <Campo label="Fecha apertura del buzón">
-                <Input type="date" value={form.fecha_apertura} onChange={(e) => campo('fecha_apertura', e.target.value)} />
-              </Campo>
-              <Campo label="Proceso / Servicio *" className="sm:col-span-2">
-                <div className="max-h-40 overflow-auto rounded-lg border border-slate-300 p-2">
-                  {listas.procesos.map((p) => (
-                    <label key={p.nombre} className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-[#EAF0FA]">
-                      <input type="checkbox" checked={procesoSel.includes(p.nombre)} onChange={() => toggleProceso(p.nombre)} />
-                      {p.nombre}
-                    </label>
-                  ))}
-                </div>
-                {procesoSel.length > 0 && <p className="mt-1 text-xs text-slate-500">Seleccionado: {procesoSel.join(', ')}</p>}
-              </Campo>
+                </select>
+              </div>
             </div>
-            {errores[2] && <p className="mt-3 text-sm text-rose-600">⚠ {errores[2]}</p>}
+            {errores[2] && <p className="pqf-error">⚠ {errores[2]}</p>}
           </div>
         )}
 
         {step === 3 && (
-          <div>
-            <h2 className="mb-4 text-base font-bold text-[#0D2D6B]">Tipo de usuario</h2>
-            <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="pqf-step">
+            <div className="pqf-step-header">
+              <span className="pqf-step-num">3</span>
+              <div><h2>Tipo de usuario</h2><p>¿Quién realiza la manifestación?</p></div>
+            </div>
+            <div className="pqf-user-grid">
               {listas.tiposUsuario.map((t) => {
                 const ui = TIPO_USUARIO_UI[t.nombre] ?? { icon: '👤' }
                 const sel = tipoUsuario === t.nombre
                 return (
-                  <button key={t.nombre} type="button" onClick={() => setTipoUsuario(t.nombre)}
-                    className={`flex flex-col items-center gap-1 rounded-xl border-2 p-4 transition ${sel ? 'border-[#16468E] bg-[#EAF0FA]' : 'border-slate-200 hover:border-slate-300'}`}>
-                    <span className="text-2xl">{ui.icon}</span>
-                    <span className="text-sm font-medium text-slate-700">{t.nombre}</span>
-                  </button>
+                  <div key={t.nombre} className={`pqf-user-card${sel ? ' sel' : ''}`} onClick={() => setTipoUsuario(t.nombre)}>
+                    <span className="ic">{ui.icon}</span><span className="lbl">{t.nombre}</span>
+                  </div>
                 )
               })}
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Campo label="Convenio / EPS *">
-                <Select value={form.convenio} onChange={(e) => campo('convenio', e.target.value)}>
+            <div className="pqf-grid">
+              <div className="pqf-field"><label>Convenio / EPS <span className="req">*</span></label>
+                <select value={form.convenio} onChange={(e) => campo('convenio', e.target.value)}>
                   <option value="">— Seleccione —</option>
                   {listas.convenios.map((x) => <option key={x.nombre} value={x.nombre}>{x.nombre}</option>)}
-                </Select>
-              </Campo>
-              <Campo label="Régimen *">
-                <Select value={form.regimen} onChange={(e) => campo('regimen', e.target.value)}>
+                </select>
+              </div>
+              <div className="pqf-field"><label>Régimen <span className="req">*</span></label>
+                <select value={form.regimen} onChange={(e) => campo('regimen', e.target.value)}>
                   <option value="">— Seleccione —</option>
                   {listas.regimenes.map((x) => <option key={x.nombre} value={x.nombre}>{x.nombre}</option>)}
-                </Select>
-              </Campo>
+                </select>
+              </div>
             </div>
-            {errores[3] && <p className="mt-3 text-sm text-rose-600">⚠ {errores[3]}</p>}
+            {errores[3] && <p className="pqf-error">⚠ {errores[3]}</p>}
           </div>
         )}
 
         {step === 4 && (
-          <div>
-            <h2 className="mb-4 text-base font-bold text-[#0D2D6B]">Datos personales</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Campo label="Nombre y apellido del paciente *">
-                <Input value={form.nombre_paciente} onChange={(e) => campo('nombre_paciente', e.target.value)} placeholder="Ej: Juan Carlos Pérez García" />
-              </Campo>
-              <Campo label="Número de identificación *">
-                <Input value={form.numero_id} onChange={(e) => campo('numero_id', e.target.value)} placeholder="Ej: 12345678" />
-              </Campo>
-              <Campo label="Teléfono de contacto">
-                <Input type="tel" value={form.telefono} onChange={(e) => campo('telefono', e.target.value)} placeholder="Ej: 3001234567" />
-              </Campo>
-              <Campo label="Dirección de residencia">
-                <Input value={form.direccion} onChange={(e) => campo('direccion', e.target.value)} placeholder="Ej: Calle 10 #5-23, Barrio Centro" />
-              </Campo>
-              <Campo label="Correo electrónico del reportante" className="sm:col-span-2">
-                <Input type="email" value={form.email_reporta} onChange={(e) => campo('email_reporta', e.target.value)} placeholder="Ej: ejemplo@correo.com" />
-              </Campo>
+          <div className="pqf-step">
+            <div className="pqf-step-header">
+              <span className="pqf-step-num">4</span>
+              <div><h2>Datos personales</h2><p>Información de contacto del paciente</p></div>
             </div>
-            {errores[4] && <p className="mt-3 text-sm text-rose-600">⚠ {errores[4]}</p>}
+            <div className="pqf-grid">
+              <div className="pqf-field full"><label>Nombre y apellido del paciente <span className="req">*</span></label>
+                <input value={form.nombre_paciente} onChange={(e) => campo('nombre_paciente', e.target.value)} placeholder="Ej: Juan Carlos Pérez García" />
+              </div>
+              <div className="pqf-field"><label>Número de identificación <span className="req">*</span></label>
+                <input value={form.numero_id} onChange={(e) => campo('numero_id', e.target.value)} placeholder="Ej: 12345678" />
+              </div>
+              <div className="pqf-field"><label>Teléfono de contacto</label>
+                <input type="tel" value={form.telefono} onChange={(e) => campo('telefono', e.target.value)} placeholder="Ej: 3001234567" />
+              </div>
+              <div className="pqf-field full"><label>Dirección de residencia</label>
+                <input value={form.direccion} onChange={(e) => campo('direccion', e.target.value)} placeholder="Ej: Calle 10 #5-23, Barrio Centro" />
+              </div>
+              <div className="pqf-field full"><label>Correo electrónico del reportante</label>
+                <input type="email" value={form.email_reporta} onChange={(e) => campo('email_reporta', e.target.value)} placeholder="Ej: ejemplo@correo.com" />
+              </div>
+            </div>
+            {errores[4] && <p className="pqf-error">⚠ {errores[4]}</p>}
           </div>
         )}
 
         {step === 5 && (
-          <div>
-            <h2 className="mb-4 text-base font-bold text-[#0D2D6B]">Descripción del caso</h2>
-            <div className="grid grid-cols-1 gap-4">
-              <Campo label="Describa su PQRSF *">
-                <Textarea rows={5} value={form.descripcion} onChange={(e) => campo('descripcion', e.target.value.slice(0, 1000))}
+          <div className="pqf-step">
+            <div className="pqf-step-header">
+              <span className="pqf-step-num">5</span>
+              <div><h2>Descripción del caso</h2><p>Detalle su PQRSF y la falla identificada</p></div>
+            </div>
+            <div className="pqf-grid">
+              <div className="pqf-field full"><label>Describa su PQRSF <span className="req">*</span></label>
+                <textarea rows={4} value={form.descripcion} onChange={(e) => campo('descripcion', e.target.value.slice(0, 1000))}
                   placeholder="Describa con detalle su petición, queja, reclamo, sugerencia o felicitación…" />
-                <span className="text-xs text-slate-400">{form.descripcion.length}/1000</span>
-              </Campo>
-              <Campo label="Falla o atributo identificado *">
-                <Select value={form.falla} onChange={(e) => campo('falla', e.target.value)}>
-                  <option value="">— Seleccione —</option>
-                  {Object.entries(fallasAgrupadas).map(([grupo, items]) => (
-                    <optgroup key={grupo} label={grupo}>
-                      {items.map((n) => <option key={n} value={n}>{n}</option>)}
-                    </optgroup>
-                  ))}
-                </Select>
-                {cfgFalla && (
-                  <span className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ background: cfgFalla.bg, color: cfgFalla.fg }}>
-                    <span className="h-2 w-2 rounded-full" style={{ background: cfgFalla.dot }} /> {cfgFalla.label}
-                  </span>
-                )}
-              </Campo>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Campo label="Especialidad">
-                  <Select value={form.especialidad} onChange={(e) => campo('especialidad', e.target.value)}>
-                    <option value="">— Seleccione —</option>
-                    {listas.especialidades.map((x) => <option key={x.nombre} value={x.nombre}>{x.nombre}</option>)}
-                  </Select>
-                </Campo>
-                <Campo label="Colaborador involucrado *">
-                  <Input value={form.colaborador} onChange={(e) => campo('colaborador', e.target.value)} placeholder="Nombre del colaborador" />
-                </Campo>
+                <div className="pqf-char-count">{form.descripcion.length}/1000</div>
               </div>
-              <Campo label="Días hábiles para responder *">
-                <div className="flex flex-wrap gap-2">
+              <div className="pqf-field full"><label>Falla o atributo identificado <span className="req">*</span></label>
+                <FallaSelect fallas={listas.fallas} valor={form.falla} onChange={(v) => campo('falla', v)} />
+              </div>
+              <div className="pqf-field"><label>Especialidad</label>
+                <select value={form.especialidad} onChange={(e) => campo('especialidad', e.target.value)}>
+                  <option value="">— Seleccione —</option>
+                  {listas.especialidades.map((x) => <option key={x.nombre} value={x.nombre}>{x.nombre}</option>)}
+                </select>
+              </div>
+              <div className="pqf-field"><label>Colaborador involucrado <span className="req">*</span></label>
+                <input value={form.colaborador} onChange={(e) => campo('colaborador', e.target.value)} placeholder="Nombre del colaborador" />
+              </div>
+              <div className="pqf-field full"><label>Días hábiles para responder <span className="req">*</span></label>
+                <div className="pqf-plazo-options">
                   {PLAZOS_RESPUESTA.map((p) => (
-                    <button key={p} type="button" onClick={() => setPlazo(p)}
-                      className={`rounded-lg border-2 px-3 py-2 text-sm transition ${plazo === p ? 'border-[#16468E] bg-[#EAF0FA] font-semibold text-[#0D2D6B]' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>
-                      {p}
-                    </button>
+                    <div key={p} className={`pqf-plazo-option${plazo === p ? ' sel' : ''}`} onClick={() => setPlazo(p)}>
+                      <span className="pqf-plazo-radio" /><span className="pqf-plazo-text">{p}</span>
+                    </div>
                   ))}
                 </div>
-              </Campo>
-              <Campo label="Documento adjunto (opcional)">
-                <input type="file" accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg" onChange={onArchivo}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#EAF0FA] file:px-3 file:py-1.5 file:text-[#0D2D6B]" />
-                {archivo && <p className="mt-1 text-xs text-slate-500">{archivo.name} ({(archivo.size / 1024).toFixed(0)} KB)</p>}
-              </Campo>
+              </div>
+              <div className="pqf-field full"><label>Documento adjunto <span style={{ color: 'var(--gray-500)', fontWeight: 400 }}>(opcional)</span></label>
+                {!archivo ? (
+                  <label className="pqf-file-drop">
+                    <span className="ic">📎</span>
+                    <span>Haga clic para adjuntar un archivo</span>
+                    <small>PDF, DOC, DOCX, TXT, PNG o JPG · máx. 10 MB</small>
+                    <input type="file" accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg" onChange={onArchivo} style={{ display: 'none' }} />
+                  </label>
+                ) : (
+                  <div className="pqf-file-preview">
+                    <span className="name">{archivo.name}</span>
+                    <span className="size">{(archivo.size / 1024).toFixed(0)} KB</span>
+                    <button type="button" className="pqf-file-remove" onClick={() => setArchivo(null)}>✕</button>
+                  </div>
+                )}
+              </div>
             </div>
-            {errores[5] && <p className="mt-3 text-sm text-rose-600">⚠ {errores[5]}</p>}
+            {errores[5] && <p className="pqf-error">⚠ {errores[5]}</p>}
           </div>
         )}
 
         {step === 6 && (
-          <div>
-            <h2 className="mb-4 text-base font-bold text-[#0D2D6B]">Resumen de su PQRSF</h2>
-            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+          <div className="pqf-step">
+            <div className="pqf-step-header">
+              <span className="pqf-step-num">6</span>
+              <div><h2>Resumen de su PQRSF</h2><p>Verifique la información antes de enviar</p></div>
+            </div>
+            <div className="pqf-summary-grid">
               {[
-                ['Tipo de PQRSF', tipoReporte], ['Entidad', form.entidad], ['Sede', form.sede],
-                ['Proceso / Servicio', procesoSel.join(', ') || '—'],
-                ['Fecha manifestación', form.fecha_manifestacion], ['Fuente', form.fuente],
-                ['Tipo de usuario', tipoUsuario], ['Convenio / EPS', form.convenio], ['Régimen', form.regimen],
-                ['Nombre del paciente', form.nombre_paciente], ['Identificación', form.numero_id],
-                ['Teléfono', form.telefono || '—'], ['Email reportante', form.email_reporta || '—'],
-                ['Especialidad', form.especialidad || '—'], ['Documento adjunto', archivo?.name || '—'],
-                ['Falla / Atributo', form.falla], ['Días hábiles para responder', plazo],
+                ['Tipo', tipoReporte], ['Entidad', form.entidad], ['Sede', form.sede],
+                ['Proceso', procesoSel.join(', ') || '—'],
+                ['Manifestación', form.fecha_manifestacion], ['Fuente', form.fuente],
+                ['Usuario', tipoUsuario], ['Convenio/EPS', form.convenio], ['Régimen', form.regimen],
+                ['Paciente', form.nombre_paciente], ['Identificación', form.numero_id],
+                ['Teléfono', form.telefono || '—'], ['Email', form.email_reporta || '—'],
+                ['Especialidad', form.especialidad || '—'], ['Adjunto', archivo?.name || '—'],
+                ['Plazo respuesta', plazo],
               ].map(([label, value]) => (
-                <div key={label} className="rounded-lg bg-slate-50 p-3">
-                  <div className="text-xs font-medium text-slate-500">{label}</div>
-                  <div className="text-slate-800">{value}</div>
+                <div key={label} className="pqf-summary-item">
+                  <div className="s-label">{label}</div>
+                  <div className="s-value">{value}</div>
                 </div>
               ))}
-              <div className="rounded-lg bg-slate-50 p-3 sm:col-span-2">
-                <div className="text-xs font-medium text-slate-500">Descripción</div>
-                <div className="whitespace-pre-wrap text-slate-800">{form.descripcion}</div>
+              <div className="pqf-summary-item full">
+                <div className="s-label">Falla / Atributo</div>
+                <div className="s-value">{form.falla}</div>
+              </div>
+              <div className="pqf-summary-item full">
+                <div className="s-label">Descripción</div>
+                <div className="s-value">{form.descripcion}</div>
               </div>
             </div>
-            {errorEnvio && <p className="mt-3 text-sm text-rose-600">⚠ {errorEnvio}</p>}
+            <div className="pqf-privacy">Sus datos son confidenciales y solo serán usados para dar trámite a esta PQRSF.</div>
+            {errorEnvio && <p className="pqf-error">⚠ {errorEnvio}</p>}
           </div>
         )}
 
-        <div className="mt-6 flex justify-between">
-          {step > 1 ? <Boton variante="secundario" onClick={anterior} disabled={!!enviando}>← Anterior</Boton> : <span />}
-          {step < 6 && step > 1 && <Boton onClick={siguiente}>Siguiente →</Boton>}
-          {step === 6 && <Boton onClick={enviar} disabled={!!enviando}>{enviando || 'Enviar PQRSF'}</Boton>}
+        <div style={{ padding: '0 28px 28px' }}>
+          <div className="pqf-nav">
+            {step > 1 ? <button className="pqf-btn pqf-btn-secondary" onClick={anterior} disabled={!!enviando}>← Anterior</button> : <span />}
+            {step < 6 && step > 1 && <button className="pqf-btn pqf-btn-primary" onClick={siguiente}>Siguiente →</button>}
+            {step === 6 && <button className="pqf-btn pqf-btn-primary" onClick={enviar} disabled={!!enviando}>{enviando || 'Enviar PQRSF'}</button>}
+          </div>
         </div>
       </div>
     </div>
   )
+}
+
+function colorDeTipo(nombre: string): string {
+  const map: Record<string, string> = { 'Petición': 'blue', Queja: 'orange', Reclamo: 'red', Sugerencia: 'green', 'Felicitación': 'gold' }
+  return map[nombre] ?? 'blue'
 }
