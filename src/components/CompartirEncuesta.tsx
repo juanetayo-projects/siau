@@ -5,31 +5,51 @@ import { Boton, Modal } from './ui'
 const ENCUESTA_URL = `${window.location.origin}${import.meta.env.BASE_URL}#/encuesta`
 const LOGO_BLANCO = `${import.meta.env.BASE_URL}images/logo_cacsb_blanc.png`
 const QR_SIZE = 220
+const LOGO_ANCHO_QR = 130 // ancho de la insignia dentro del QR (alto se deriva de la proporción real del logo)
 
 // Compone una vez (fuera de qrcode.react) una insignia azul con el logo blanco,
 // para pasarla como imageSettings.src — dibujar directamente sobre el canvas del
 // QR no sirve porque la librería lo redimensiona y transforma (devicePixelRatio +
 // ctx.scale) en cada render, y cualquier dibujo externo queda mal ubicado o se borra.
+// El logo real es un lockup ancho (1909x538, ~3.55:1, incluye el texto "Santa
+// Bárbara"), así que la insignia respeta esa proporción en vez de forzarlo a un
+// cuadrado — evita distorsión.
 function useInsigniaBlanca() {
-  const [url, setUrl] = useState<string | null>(null)
+  const [insignia, setInsignia] = useState<{ url: string; aspecto: number } | null>(null)
   useEffect(() => {
     const img = new Image()
     img.onload = () => {
-      const size = 88
+      const aspecto = img.naturalWidth / img.naturalHeight
+      const escala = 4 // renderizar a mayor resolución que el tamaño mostrado, para que no se vea pixelado
+      const padding = 14 * escala
+      const logoW = 220 * escala
+      const logoH = logoW / aspecto
+      const w = logoW + padding * 2
+      const h = logoH + padding * 2
+      const radio = 14 * escala
+
       const canvas = document.createElement('canvas')
-      canvas.width = size
-      canvas.height = size
+      canvas.width = w
+      canvas.height = h
       const ctx = canvas.getContext('2d')
       if (!ctx) return
-      const r = size / 2
-      ctx.beginPath(); ctx.arc(r, r, r, 0, Math.PI * 2); ctx.fillStyle = '#0D2D6B'; ctx.fill()
-      const logoSize = size * 0.6
-      ctx.drawImage(img, r - logoSize / 2, r - logoSize / 2, logoSize, logoSize)
-      setUrl(canvas.toDataURL('image/png'))
+
+      ctx.beginPath()
+      ctx.moveTo(radio, 0)
+      ctx.arcTo(w, 0, w, h, radio)
+      ctx.arcTo(w, h, 0, h, radio)
+      ctx.arcTo(0, h, 0, 0, radio)
+      ctx.arcTo(0, 0, w, 0, radio)
+      ctx.closePath()
+      ctx.fillStyle = '#0D2D6B'
+      ctx.fill()
+
+      ctx.drawImage(img, padding, padding, logoW, logoH)
+      setInsignia({ url: canvas.toDataURL('image/png'), aspecto: w / h })
     }
     img.src = LOGO_BLANCO
   }, [])
-  return url
+  return insignia
 }
 
 export default function CompartirEncuesta() {
@@ -65,7 +85,12 @@ export default function CompartirEncuesta() {
               size={QR_SIZE}
               fgColor="#0D2D6B"
               level="H"
-              imageSettings={insignia ? { src: insignia, height: 46, width: 46, excavate: true } : undefined}
+              imageSettings={insignia ? {
+                src: insignia.url,
+                width: LOGO_ANCHO_QR,
+                height: LOGO_ANCHO_QR / insignia.aspecto,
+                excavate: true,
+              } : undefined}
             />
           </div>
           <Boton onClick={descargarPNG} className="w-full justify-center">⬇ Descargar QR (PNG)</Boton>
