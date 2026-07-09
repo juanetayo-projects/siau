@@ -15,6 +15,7 @@ import MapaCalorSatisfaccion from './pages/analisis/MapaCalorSatisfaccion'
 import Usuarios from './pages/admin/Usuarios'
 import TablasMaestrasResumen from './pages/admin/TablasMaestrasResumen'
 import ColoresMapaCalor from './pages/admin/ColoresMapaCalor'
+import Encuesta from './pages/public/Encuesta'
 
 function AreaProtegida() {
   const { session, loading } = useAuth()
@@ -44,6 +45,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/encuesta" element={<Encuesta />} />
 
       <Route element={<AreaProtegida />}>
         <Route index element={<Navigate to="/reporte/registrar" replace />} />
