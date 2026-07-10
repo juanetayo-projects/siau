@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import { FALLA_SEMAFORO, SEMAFORO_CFG } from '../../lib/pqrsf'
+import { calcularPlazo } from '../../lib/plazoRespuesta'
 import { PageHeader, FilterBar, Campo, Input, Select, Boton, Tabla, THead, TH, TR, TD, Modal, Spinner } from '../../components/ui'
 import '../../styles/pqrsf-form.css'
 
@@ -19,6 +20,7 @@ type Respuesta = {
   respondido_por_nombre: string | null; respondido_por_email: string | null
   archivo_url: string | null; archivo_nombre: string | null
 }
+type Evento = { id: number; tipo: 'Abierto' | 'Cerrado'; fecha: string; registrado_por_nombre: string | null }
 type Reporte = {
   id: number; tipo_reporte: string | null; estado: string | null; entidad: string | null; sede: string | null
   proceso: string | null; fuente: string | null; fecha_manifestacion: string | null; convenio_eps: string | null
@@ -28,8 +30,32 @@ type Reporte = {
   falla_atributo: string | null; especialidad: string | null; colaborador: string | null
   descripcion: string | null; dias_habiles: string | null
   archivo_url: string | null; archivo_nombre: string | null
-  created_at: string
+  created_at: string; fecha_apertura: string | null
   respuestas_pqrsf: Respuesta[]
+}
+
+const COLOR_PLAZO: Record<string, string> = { verde: '#16a34a', amarillo: '#f59e0b', rojo: '#dc2626', completado: '#64748b' }
+
+function BarraTiempoRespuesta({ r }: { r: Reporte }) {
+  const cerrado = r.estado === 'Respondida' || r.estado === 'Cerrada'
+  const { diasRestantes, pct, estado } = calcularPlazo(r.dias_habiles, r.fecha_apertura ?? r.created_at?.slice(0, 10), cerrado)
+  if (estado === 'sin_plazo') return <span className="text-xs text-slate-300">—</span>
+
+  const color = COLOR_PLAZO[estado]
+  let texto: string
+  if (estado === 'completado') texto = r.estado ?? 'Completado'
+  else if (diasRestantes! < 0) texto = `Vencido ${Math.abs(diasRestantes!)}d`
+  else if (diasRestantes === 0) texto = 'Vence hoy'
+  else texto = `${diasRestantes}d restantes`
+
+  return (
+    <div className="w-28">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+      </div>
+      <div className="mt-0.5 text-[10px] font-medium" style={{ color }}>{texto}</div>
+    </div>
+  )
 }
 
 function FallaBadge({ falla }: { falla: string | null }) {
@@ -44,7 +70,7 @@ function FallaBadge({ falla }: { falla: string | null }) {
 }
 
 export default function GestionPqrsf() {
-  const { perfil } = useAuth()
+  const { perfil, session } = useAuth()
   const esAdmin = perfil?.rol === 'admin'
   const [registros, setRegistros] = useState<Reporte[]>([])
   const [cargando, setCargando] = useState(true)
@@ -55,9 +81,9 @@ export default function GestionPqrsf() {
   const [fDesde, setFDesde] = useState('')
   const [fHasta, setFHasta] = useState('')
   const [seleccionado, setSeleccionado] = useState<Reporte | null>(null)
-  const [editando, setEditando] = useState(false)
-  const [guardando, setGuardando] = useState(false)
   const [eliminarId, setEliminarId] = useState<number | null>(null)
+  const [eventos, setEventos] = useState<Evento[]>([])
+  const [registrandoEvento, setRegistrandoEvento] = useState(false)
 
   async function cargar() {
     setCargando(true)
@@ -70,8 +96,8 @@ export default function GestionPqrsf() {
   }
   useEffect(() => { void cargar() }, [])
 
-  const tipos = useMemo(() => [...new Set(registros.map((r) => r.tipo_reporte).filter(Boolean))] as string[], [registros])
-  const sedes = useMemo(() => [...new Set(registros.map((r) => r.sede).filter(Boolean))] as string[], [registros])
+  const tipos = useMemo(() => ([...new Set(registros.map((r) => r.tipo_reporte).filter(Boolean))] as string[]).sort(), [registros])
+  const sedes = useMemo(() => ([...new Set(registros.map((r) => r.sede).filter(Boolean))] as string[]).sort(), [registros])
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
@@ -91,8 +117,13 @@ export default function GestionPqrsf() {
     })
   }, [registros, busqueda, fTipo, fEstado, fSede, fDesde, fHasta])
 
-  function abrir(r: Reporte) { setSeleccionado(r); setEditando(false) }
-  function cerrar() { setSeleccionado(null); setEditando(false) }
+  async function cargarEventos(reporteId: number) {
+    const { data } = await supabase.from('reportes_pqrsf_eventos').select('id,tipo,fecha,registrado_por_nombre')
+      .eq('reporte_id', reporteId).order('fecha', { ascending: false })
+    setEventos((data ?? []) as Evento[])
+  }
+  function abrir(r: Reporte) { setSeleccionado(r); void cargarEventos(r.id) }
+  function cerrar() { setSeleccionado(null); setEventos([]) }
 
   async function cambiarEstado(nuevo: string) {
     if (!seleccionado) return
@@ -102,28 +133,16 @@ export default function GestionPqrsf() {
     setRegistros((prev) => prev.map((r) => (r.id === actualizado.id ? actualizado : r)))
   }
 
-  const [edit, setEdit] = useState<Partial<Reporte>>({})
-  function iniciarEdicion() {
-    if (!seleccionado) return
-    setEdit({
-      nombre_paciente: seleccionado.nombre_paciente, numero_identificacion: seleccionado.numero_identificacion,
-      telefono: seleccionado.telefono, email_reporta: seleccionado.email_reporta,
-      especialidad: seleccionado.especialidad, colaborador: seleccionado.colaborador,
-      descripcion: seleccionado.descripcion,
-    })
-    setEditando(true)
-  }
-  async function guardarEdicion() {
-    if (!seleccionado) return
-    setGuardando(true)
+  async function registrarEvento(tipo: 'Abierto' | 'Cerrado') {
+    if (!seleccionado || !session) return
+    setRegistrandoEvento(true)
     try {
-      await supabase.from('reportes_pqrsf').update(edit).eq('id', seleccionado.id)
-      const actualizado = { ...seleccionado, ...edit }
-      setSeleccionado(actualizado)
-      setRegistros((prev) => prev.map((r) => (r.id === actualizado.id ? actualizado : r)))
-      setEditando(false)
+      await supabase.from('reportes_pqrsf_eventos').insert({
+        reporte_id: seleccionado.id, tipo, registrado_por: session.user.id, registrado_por_nombre: perfil?.nombre ?? null,
+      })
+      await cargarEventos(seleccionado.id)
     } finally {
-      setGuardando(false)
+      setRegistrandoEvento(false)
     }
   }
 
@@ -171,7 +190,7 @@ export default function GestionPqrsf() {
         <Tabla>
           <THead>
             <tr>
-              <TH>Radicado</TH><TH>Tipo</TH><TH>Paciente</TH><TH>Entidad</TH><TH>Sede</TH>
+              <TH>Tiempo de respuesta</TH><TH>Radicado</TH><TH>Tipo</TH><TH>Paciente</TH><TH>Entidad</TH><TH>Sede</TH>
               <TH>Falla</TH><TH>Fecha</TH><TH>Estado</TH><TH>Respondida</TH><TH>Acciones</TH>
             </tr>
           </THead>
@@ -182,6 +201,7 @@ export default function GestionPqrsf() {
               const hasResp = r.respuestas_pqrsf?.length > 0
               return (
                 <TR key={r.id} i={i}>
+                  <TD><BarraTiempoRespuesta r={r} /></TD>
                   <TD className="whitespace-nowrap font-mono text-xs font-bold text-[#0D2D6B]">{radicado}</TD>
                   <TD><span className="rounded-full px-2 py-0.5 text-xs font-semibold text-white" style={{ background: TIPO_CFG[r.tipo_reporte ?? ''] ?? '#6b7280' }}>{r.tipo_reporte}</span></TD>
                   <TD className="max-w-[150px] truncate">{r.nombre_paciente || '—'}</TD>
@@ -216,57 +236,52 @@ export default function GestionPqrsf() {
               ))}
             </div>
 
-            {!editando ? (
+            <div className="pqf-section-title">Datos del reporte</div>
+            <div className="pqf-record-grid">
+              <Campo2 l="Entidad" v={seleccionado.entidad} /><Campo2 l="Sede" v={seleccionado.sede} />
+              <Campo2 l="Proceso / Servicio" v={seleccionado.proceso} /><Campo2 l="Fuente" v={seleccionado.fuente} />
+              <Campo2 l="Convenio / EPS" v={seleccionado.convenio_eps} /><Campo2 l="Régimen" v={seleccionado.regimen} />
+              <Campo2 l="Paciente" v={seleccionado.nombre_paciente} /><Campo2 l="Identificación" v={seleccionado.numero_identificacion} />
+              <Campo2 l="Teléfono" v={seleccionado.telefono} /><Campo2 l="Correo" v={seleccionado.email_reporta} />
+              <Campo2 l="Especialidad" v={seleccionado.especialidad} /><Campo2 l="Colaborador" v={seleccionado.colaborador} />
+            </div>
+            <div style={{ marginBottom: 12 }}><FallaBadge falla={seleccionado.falla_atributo} /></div>
+            {seleccionado.descripcion && (
+              <div className="pqf-record-desc"><div className="pqf-record-label">Descripción</div><div className="pqf-record-value">{seleccionado.descripcion}</div></div>
+            )}
+
+            <div className="pqf-section-title" style={{ marginTop: 16 }}>Respuesta</div>
+            {resp ? (
               <>
-                <div className="pqf-section-title">Datos del reporte</div>
                 <div className="pqf-record-grid">
-                  <Campo2 l="Entidad" v={seleccionado.entidad} /><Campo2 l="Sede" v={seleccionado.sede} />
-                  <Campo2 l="Proceso / Servicio" v={seleccionado.proceso} /><Campo2 l="Fuente" v={seleccionado.fuente} />
-                  <Campo2 l="Convenio / EPS" v={seleccionado.convenio_eps} /><Campo2 l="Régimen" v={seleccionado.regimen} />
-                  <Campo2 l="Paciente" v={seleccionado.nombre_paciente} /><Campo2 l="Identificación" v={seleccionado.numero_identificacion} />
-                  <Campo2 l="Teléfono" v={seleccionado.telefono} /><Campo2 l="Correo" v={seleccionado.email_reporta} />
-                  <Campo2 l="Especialidad" v={seleccionado.especialidad} /><Campo2 l="Colaborador" v={seleccionado.colaborador} />
+                  <Campo2 l="Fecha respuesta" v={resp.fecha_respuesta} /><Campo2 l="Respondido por" v={resp.respondido_por_nombre} />
+                  <Campo2 l="Correo responsable" v={resp.respondido_por_email} /><Campo2 l="Colaborador" v={resp.colaborador} />
                 </div>
-                <div style={{ marginBottom: 12 }}><FallaBadge falla={seleccionado.falla_atributo} /></div>
-                {seleccionado.descripcion && (
-                  <div className="pqf-record-desc"><div className="pqf-record-label">Descripción</div><div className="pqf-record-value">{seleccionado.descripcion}</div></div>
-                )}
-
-                <div className="pqf-section-title" style={{ marginTop: 16 }}>Respuesta</div>
-                {resp ? (
-                  <>
-                    <div className="pqf-record-grid">
-                      <Campo2 l="Fecha respuesta" v={resp.fecha_respuesta} /><Campo2 l="Respondido por" v={resp.respondido_por_nombre} />
-                      <Campo2 l="Correo responsable" v={resp.respondido_por_email} /><Campo2 l="Colaborador" v={resp.colaborador} />
-                    </div>
-                    <div className="pqf-record-desc" style={{ background: 'var(--green-lt)', borderLeftColor: 'var(--green)' }}>
-                      <div className="pqf-record-label">Texto de la respuesta</div><div className="pqf-record-value">{resp.respuesta}</div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="pqf-not-found">Este PQRSF aún no tiene respuesta registrada.</div>
-                )}
-
-                <div className="pqf-nav" style={{ marginTop: 16, padding: 0, border: 'none' }}>
-                  <Boton variante="secundario" onClick={iniciarEdicion}>Editar</Boton>
+                <div className="pqf-record-desc" style={{ background: 'var(--green-lt)', borderLeftColor: 'var(--green)' }}>
+                  <div className="pqf-record-label">Texto de la respuesta</div><div className="pqf-record-value">{resp.respuesta}</div>
                 </div>
               </>
             ) : (
-              <>
-                <div className="pqf-grid">
-                  <div className="pqf-field"><label>Nombre paciente</label><input value={edit.nombre_paciente ?? ''} onChange={(e) => setEdit((v) => ({ ...v, nombre_paciente: e.target.value }))} /></div>
-                  <div className="pqf-field"><label>Identificación</label><input value={edit.numero_identificacion ?? ''} onChange={(e) => setEdit((v) => ({ ...v, numero_identificacion: e.target.value }))} /></div>
-                  <div className="pqf-field"><label>Teléfono</label><input value={edit.telefono ?? ''} onChange={(e) => setEdit((v) => ({ ...v, telefono: e.target.value }))} /></div>
-                  <div className="pqf-field"><label>Correo</label><input value={edit.email_reporta ?? ''} onChange={(e) => setEdit((v) => ({ ...v, email_reporta: e.target.value }))} /></div>
-                  <div className="pqf-field"><label>Especialidad</label><input value={edit.especialidad ?? ''} onChange={(e) => setEdit((v) => ({ ...v, especialidad: e.target.value }))} /></div>
-                  <div className="pqf-field"><label>Colaborador</label><input value={edit.colaborador ?? ''} onChange={(e) => setEdit((v) => ({ ...v, colaborador: e.target.value }))} /></div>
-                  <div className="pqf-field full"><label>Descripción</label><textarea rows={4} value={edit.descripcion ?? ''} onChange={(e) => setEdit((v) => ({ ...v, descripcion: e.target.value }))} /></div>
-                </div>
-                <div className="pqf-nav" style={{ marginTop: 16, padding: 0, border: 'none' }}>
-                  <Boton variante="secundario" onClick={() => setEditando(false)} disabled={guardando}>Cancelar</Boton>
-                  <Boton onClick={guardarEdicion} disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar cambios'}</Boton>
-                </div>
-              </>
+              <div className="pqf-not-found">Este PQRSF aún no tiene respuesta registrada.</div>
+            )}
+
+            <div className="pqf-section-title" style={{ marginTop: 16 }}>Bitácora Abierto / Cerrado</div>
+            <div className="mb-3 flex gap-2">
+              <Boton variante="secundario" onClick={() => registrarEvento('Abierto')} disabled={registrandoEvento}>🔓 Marcar Abierto</Boton>
+              <Boton variante="secundario" onClick={() => registrarEvento('Cerrado')} disabled={registrandoEvento}>🔒 Marcar Cerrado</Boton>
+            </div>
+            {eventos.length === 0 ? (
+              <p className="text-sm text-slate-400">Sin eventos registrados.</p>
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-slate-100">
+                {eventos.map((ev) => (
+                  <div key={ev.id} className="flex items-center gap-3 border-b border-slate-50 px-3 py-2 text-sm last:border-0">
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${ev.tipo === 'Abierto' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>{ev.tipo}</span>
+                    <span className="text-xs text-slate-500">{new Date(ev.fecha).toLocaleString('es-CO')}</span>
+                    <span className="ml-auto text-xs text-slate-400">{ev.registrado_por_nombre ?? '—'}</span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}

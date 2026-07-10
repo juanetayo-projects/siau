@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
 import { supabase } from '../../lib/supabase'
-import { useHeatmapColores, construirGrilla, DIAS, HORAS } from '../../lib/heatmap'
+import { useHeatmapColores, construirGrilla, resumenCelda, DIAS, HORAS } from '../../lib/heatmap'
 import { PageHeader, Spinner, Modal, Tabla, THead, TH, TR, TD } from '../../components/ui'
 
 type Fila = { id: number; tipo_reporte: string | null; nombre_paciente: string | null; estado: string | null; created_at: string }
@@ -29,13 +29,23 @@ export default function MapaCalorPqrsf() {
   const option = {
     tooltip: {
       position: 'top',
-      formatter: (p: any) => `${DIAS[p.value[1]]} · ${p.value[0]}:00<br/><b>${p.value[2]}</b> PQRSF<br/><span style="font-size:10px;color:#888">Clic para ver el detalle</span>`,
+      formatter: (p: any) => {
+        const [h, d, v] = p.value as [number, number, number]
+        if (!v) return `${DIAS[d]} · ${h}:00<br/>Sin registros`
+        const idxs = celdas[`${d}-${h}`] ?? []
+        const porTipo = resumenCelda(idxs, filas ?? [], 'tipo_reporte')
+        return `<b>${DIAS[d]} · ${h}:00</b><br/><b>${v}</b> PQRSF<br/>${porTipo}<br/><span style="font-size:10px;color:#888">Clic para ver el detalle</span>`
+      },
     },
     grid: { left: 50, right: 10, top: 10, bottom: 60 },
     xAxis: { type: 'category', data: HORAS.map((h) => `${h}h`), splitArea: { show: true }, axisLabel: { fontSize: 10 } },
     yAxis: { type: 'category', data: DIAS, splitArea: { show: true }, axisLabel: { fontSize: 11 } },
     visualMap: { min: 0, max: Math.max(max, 1), calculable: true, orient: 'horizontal', left: 'center', bottom: 0, inRange: { color: colores }, itemHeight: 80, textStyle: { fontSize: 10 } },
-    series: [{ name: 'PQRSF', type: 'heatmap', data, label: { show: false }, itemStyle: { borderColor: '#fff', borderWidth: 1 } }],
+    series: [{
+      name: 'PQRSF', type: 'heatmap', data,
+      label: { show: true, fontSize: 10, formatter: (p: any) => (p.value[2] ? p.value[2] : '') },
+      itemStyle: { borderColor: '#fff', borderWidth: 1 },
+    }],
   }
   const onEvents = { click: (p: any) => { const [h, d, v] = p.value as [number, number, number]; if (v > 0) setSel({ dia: d, hora: h }) } }
 

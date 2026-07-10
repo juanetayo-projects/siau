@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
 import { useAuth } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
@@ -49,16 +49,26 @@ async function actualizarHeatmapConfig(modulo: ModuloHeatmap, colores: string[],
   return data
 }
 
-function EditorPaleta({ modulo, titulo }: { modulo: ModuloHeatmap; titulo: string }) {
+function EditorPaleta({ modulo, titulo, onDirtyChange }: { modulo: ModuloHeatmap; titulo: string; onDirtyChange: (sucio: boolean) => void }) {
   const { session } = useAuth()
   const [colores, setColores] = useState<string[]>(COLORES_DEFECTO)
   const [cargando, setCargando] = useState(true)
   const [guardando, setGuardando] = useState(false)
   const [msg, setMsg] = useState('')
+  const guardadoRef = useRef<string>('')
 
   useEffect(() => {
-    void getHeatmapConfig(modulo).then((c) => { setColores(c.colores?.length ? c.colores : COLORES_DEFECTO); setCargando(false) })
+    void getHeatmapConfig(modulo).then((c) => {
+      const iniciales = c.colores?.length ? c.colores : COLORES_DEFECTO
+      setColores(iniciales)
+      guardadoRef.current = JSON.stringify(iniciales)
+      setCargando(false)
+    })
   }, [modulo])
+
+  useEffect(() => {
+    onDirtyChange(JSON.stringify(colores) !== guardadoRef.current)
+  }, [colores, onDirtyChange])
 
   function cambiarColor(i: number, valor: string) {
     setColores((prev) => prev.map((c, idx) => (idx === i ? valor : c)))
@@ -78,6 +88,8 @@ function EditorPaleta({ modulo, titulo }: { modulo: ModuloHeatmap; titulo: strin
     setGuardando(true); setMsg('')
     try {
       await actualizarHeatmapConfig(modulo, colores, session.user.id)
+      guardadoRef.current = JSON.stringify(colores)
+      onDirtyChange(false)
       setMsg('Colores guardados.')
     } finally { setGuardando(false) }
   }
@@ -144,21 +156,29 @@ function EditorPaleta({ modulo, titulo }: { modulo: ModuloHeatmap; titulo: strin
 
 export default function ColoresMapaCalor() {
   const [modulo, setModulo] = useState<ModuloHeatmap>('pqrsf')
+  const [sinGuardar, setSinGuardar] = useState(false)
+
+  function cambiarModulo(m: ModuloHeatmap) {
+    if (m === modulo) return
+    if (sinGuardar && !window.confirm('Tiene colores sin guardar en esta pestaña. ¿Desea descartarlos y cambiar de módulo?')) return
+    setModulo(m)
+  }
 
   return (
     <div>
       <PageHeader titulo="Colores del mapa de calor" subtitulo="Defina la escala de colores usada en cada mapa de calor" />
       <div className="mb-5 flex gap-2">
         {(['pqrsf', 'satisfaccion'] as const).map((m) => (
-          <button key={m} onClick={() => setModulo(m)}
+          <button key={m} onClick={() => cambiarModulo(m)}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
               modulo === m ? 'bg-[#0D2D6B] text-white' : 'bg-white text-[#0D2D6B] border border-[#0D2D6B] hover:bg-[#EAF0FA]'
             }`}>
             {m === 'pqrsf' ? 'Mapa de Calor PQRSF' : 'Mapa de Calor Satisfacción'}
+            {sinGuardar && modulo === m && <span className="ml-1.5 text-amber-300">●</span>}
           </button>
         ))}
       </div>
-      <EditorPaleta key={modulo} modulo={modulo} titulo={modulo === 'pqrsf' ? 'PQRSF' : 'Satisfacción'} />
+      <EditorPaleta key={modulo} modulo={modulo} titulo={modulo === 'pqrsf' ? 'PQRSF' : 'Satisfacción'} onDirtyChange={setSinGuardar} />
     </div>
   )
 }

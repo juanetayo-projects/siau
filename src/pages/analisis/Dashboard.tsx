@@ -3,6 +3,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { supabase } from '../../lib/supabase'
 import { MetricCard, PageHeader, Spinner, FilterBar, Campo, Select, Boton } from '../../components/ui'
 import { EXPERIENCIA_COLORS, SEDES, SERVICIOS, ENTIDADES, EXPERIENCIA_GLOBAL } from '../../lib/satisfaccion'
+import { exportarImagenSeccion, exportarPDFSeccion } from '../../lib/exportarSeccion'
+
+const LOGO = `${import.meta.env.BASE_URL}images/logo_cacsb2.png`
 
 const TIPO_COLOR: Record<string, string> = {
   'Petición': '#2471c8', Queja: '#ea580c', Reclamo: '#dc2626', Sugerencia: '#16a34a', 'Felicitación': '#ca8a04',
@@ -22,6 +25,36 @@ type RespuestaSat = {
   sede: string | null; servicio: string | null; entidad_salud: string | null; fecha: string | null
 }
 
+function EncabezadoExport({ titulo, filtrosTexto }: { titulo: string; filtrosTexto: string }) {
+  return (
+    <div className="mb-4 flex items-center gap-3 border-b border-slate-100 pb-3">
+      <img src={LOGO} alt="CAC Santa Bárbara" className="h-8 object-contain" />
+      <div>
+        <div className="text-sm font-bold text-[#0D2D6B]">SIAU · {titulo}</div>
+        <div className="text-xs text-slate-500">{filtrosTexto}</div>
+      </div>
+    </div>
+  )
+}
+
+function BotonesExportar({ elementId, titulo, filtrosTexto, archivo }: { elementId: string; titulo: string; filtrosTexto: string; archivo: string }) {
+  const [exportando, setExportando] = useState('')
+  async function imagen() {
+    setExportando('imagen')
+    try { await exportarImagenSeccion(elementId, archivo) } finally { setExportando('') }
+  }
+  async function pdf() {
+    setExportando('pdf')
+    try { await exportarPDFSeccion(elementId, titulo, filtrosTexto, archivo) } finally { setExportando('') }
+  }
+  return (
+    <div className="flex gap-2">
+      <Boton variante="secundario" onClick={imagen} disabled={!!exportando}>{exportando === 'imagen' ? 'Generando…' : '🖼️ Imagen'}</Boton>
+      <Boton variante="secundario" onClick={pdf} disabled={!!exportando}>{exportando === 'pdf' ? 'Generando…' : '📄 PDF'}</Boton>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const [reportes, setReportes] = useState<ReportePQRSF[] | null>(null)
   const [satisfaccion, setSatisfaccion] = useState<RespuestaSat[] | null>(null)
@@ -36,10 +69,10 @@ export default function Dashboard() {
       .then(({ data }) => setSatisfaccion(data ?? []))
   }, [])
 
-  const procesosPqrsf = useMemo(() => [...new Set((reportes ?? []).map((r) => r.proceso).filter(Boolean))] as string[], [reportes])
-  const conveniosPqrsf = useMemo(() => [...new Set((reportes ?? []).map((r) => r.convenio_eps).filter(Boolean))] as string[], [reportes])
-  const sedesPqrsf = useMemo(() => [...new Set((reportes ?? []).map((r) => r.sede).filter(Boolean))] as string[], [reportes])
-  const tiposPqrsf = useMemo(() => [...new Set((reportes ?? []).map((r) => r.tipo_reporte).filter(Boolean))] as string[], [reportes])
+  const procesosPqrsf = useMemo(() => ([...new Set((reportes ?? []).map((r) => r.proceso).filter(Boolean))] as string[]).sort(), [reportes])
+  const conveniosPqrsf = useMemo(() => ([...new Set((reportes ?? []).map((r) => r.convenio_eps).filter(Boolean))] as string[]).sort(), [reportes])
+  const sedesPqrsf = useMemo(() => ([...new Set((reportes ?? []).map((r) => r.sede).filter(Boolean))] as string[]).sort(), [reportes])
+  const tiposPqrsf = useMemo(() => ([...new Set((reportes ?? []).map((r) => r.tipo_reporte).filter(Boolean))] as string[]).sort(), [reportes])
 
   const reportesFiltrados = useMemo(() => {
     if (!reportes) return null
@@ -99,127 +132,150 @@ export default function Dashboard() {
 
   if (!pqrsf || !sat) return <Spinner texto="Cargando indicadores…" />
 
+  const filtrosTextoPqrsf = [
+    fp.tipo && `Tipo: ${fp.tipo}`, fp.estado && `Estado: ${fp.estado}`, fp.sede && `Sede: ${fp.sede}`,
+    fp.proceso && `Proceso: ${fp.proceso}`, fp.convenio && `Convenio: ${fp.convenio}`,
+    fp.desde && `Desde ${fp.desde}`, fp.hasta && `Hasta ${fp.hasta}`,
+  ].filter(Boolean).join(' · ') || 'Sin filtros aplicados'
+
+  const filtrosTextoSat = [
+    fs.sede && `Sede: ${fs.sede}`, fs.servicio && `Servicio: ${fs.servicio}`, fs.entidad && `Entidad: ${fs.entidad}`,
+    fs.experiencia && `Experiencia: ${fs.experiencia}`, fs.desde && `Desde ${fs.desde}`, fs.hasta && `Hasta ${fs.hasta}`,
+  ].filter(Boolean).join(' · ') || 'Sin filtros aplicados'
+
   return (
     <div className="space-y-8">
       <PageHeader titulo="Dashboard" subtitulo="Indicadores consolidados de PQRSF y Satisfacción" />
 
       <section>
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#0D2D6B]">PQRSF</h2>
-        <FilterBar>
-          <Campo label="Tipo">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-[#0D2D6B]">PQRSF</h2>
+          <BotonesExportar elementId="dashboard-pqrsf" titulo="Dashboard PQRSF" filtrosTexto={filtrosTextoPqrsf} archivo={`dashboard-pqrsf-${new Date().toISOString().slice(0, 10)}`} />
+        </div>
+        <FilterBar nowrap>
+          <Campo label="Tipo" className="shrink-0">
             <Select value={fp.tipo ?? ''} onChange={(e) => setFp((f) => ({ ...f, tipo: e.target.value || undefined }))}>
               <option value="">Todos</option>{tiposPqrsf.map((t) => <option key={t} value={t}>{t}</option>)}
             </Select>
           </Campo>
-          <Campo label="Estado">
+          <Campo label="Estado" className="shrink-0">
             <Select value={fp.estado ?? ''} onChange={(e) => setFp((f) => ({ ...f, estado: e.target.value || undefined }))}>
               <option value="">Todos</option>{ESTADOS_PQRSF.map((t) => <option key={t} value={t}>{t}</option>)}
             </Select>
           </Campo>
-          <Campo label="Sede">
+          <Campo label="Sede" className="shrink-0">
             <Select value={fp.sede ?? ''} onChange={(e) => setFp((f) => ({ ...f, sede: e.target.value || undefined }))}>
               <option value="">Todas</option>{sedesPqrsf.map((t) => <option key={t} value={t}>{t}</option>)}
             </Select>
           </Campo>
-          <Campo label="Proceso">
+          <Campo label="Proceso" className="shrink-0">
             <Select value={fp.proceso ?? ''} onChange={(e) => setFp((f) => ({ ...f, proceso: e.target.value || undefined }))}>
               <option value="">Todos</option>{procesosPqrsf.map((t) => <option key={t} value={t}>{t}</option>)}
             </Select>
           </Campo>
-          <Campo label="Convenio / EPS">
+          <Campo label="Convenio / EPS" className="shrink-0">
             <Select value={fp.convenio ?? ''} onChange={(e) => setFp((f) => ({ ...f, convenio: e.target.value || undefined }))}>
               <option value="">Todos</option>{conveniosPqrsf.map((t) => <option key={t} value={t}>{t}</option>)}
             </Select>
           </Campo>
-          <Campo label="Desde"><input type="date" value={fp.desde ?? ''} onChange={(e) => setFp((f) => ({ ...f, desde: e.target.value || undefined }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Campo>
-          <Campo label="Hasta"><input type="date" value={fp.hasta ?? ''} onChange={(e) => setFp((f) => ({ ...f, hasta: e.target.value || undefined }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Campo>
-          <Boton variante="secundario" onClick={() => setFp({})}>Limpiar</Boton>
+          <Campo label="Desde" className="shrink-0"><input type="date" value={fp.desde ?? ''} onChange={(e) => setFp((f) => ({ ...f, desde: e.target.value || undefined }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Campo>
+          <Campo label="Hasta" className="shrink-0"><input type="date" value={fp.hasta ?? ''} onChange={(e) => setFp((f) => ({ ...f, hasta: e.target.value || undefined }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Campo>
+          <Boton variante="secundario" onClick={() => setFp({})} className="shrink-0">Limpiar</Boton>
         </FilterBar>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <MetricCard titulo="Total registrados" valor={pqrsf.total} icono="📋" color="azul" />
-          <MetricCard titulo="Pendientes de gestión" valor={pqrsf.pendientes} icono="⏳" color="ambar" />
-          <MetricCard titulo="Respondidas / Cerradas" valor={pqrsf.respondidas} icono="✅" color="verde" />
-        </div>
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
-            <h3 className="mb-3 text-sm font-semibold text-slate-600">Por tipo de PQRSF</h3>
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={pqrsf.porTipo}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="tipo" tick={{ fontSize: 11 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="cantidad" radius={[6, 6, 0, 0]}>
-                  {pqrsf.porTipo.map((d) => <Cell key={d.tipo} fill={TIPO_COLOR[d.tipo] ?? '#64748b'} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+        <div id="dashboard-pqrsf" className="rounded-2xl bg-white p-4">
+          <EncabezadoExport titulo="Dashboard PQRSF" filtrosTexto={filtrosTextoPqrsf} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <MetricCard titulo="Total registrados" valor={pqrsf.total} icono="📋" color="azul" />
+            <MetricCard titulo="Pendientes de gestión" valor={pqrsf.pendientes} icono="⏳" color="ambar" />
+            <MetricCard titulo="Respondidas / Cerradas" valor={pqrsf.respondidas} icono="✅" color="verde" />
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
-            <h3 className="mb-3 text-sm font-semibold text-slate-600">Por estado</h3>
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={pqrsf.porEstado}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="estado" tick={{ fontSize: 11 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="cantidad" radius={[6, 6, 0, 0]}>
-                  {pqrsf.porEstado.map((d) => <Cell key={d.estado} fill={ESTADO_COLOR[d.estado] ?? '#64748b'} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+              <h3 className="mb-3 text-sm font-semibold text-slate-600">Por tipo de PQRSF</h3>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={pqrsf.porTipo}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="tipo" tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="cantidad" radius={[6, 6, 0, 0]}>
+                    {pqrsf.porTipo.map((d) => <Cell key={d.tipo} fill={TIPO_COLOR[d.tipo] ?? '#64748b'} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+              <h3 className="mb-3 text-sm font-semibold text-slate-600">Por estado</h3>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={pqrsf.porEstado}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="estado" tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="cantidad" radius={[6, 6, 0, 0]}>
+                    {pqrsf.porEstado.map((d) => <Cell key={d.estado} fill={ESTADO_COLOR[d.estado] ?? '#64748b'} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#0D2D6B]">Satisfacción</h2>
-        <FilterBar>
-          <Campo label="Sede">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-[#0D2D6B]">Satisfacción</h2>
+          <BotonesExportar elementId="dashboard-satisfaccion" titulo="Dashboard Satisfacción" filtrosTexto={filtrosTextoSat} archivo={`dashboard-satisfaccion-${new Date().toISOString().slice(0, 10)}`} />
+        </div>
+        <FilterBar nowrap>
+          <Campo label="Sede" className="shrink-0">
             <Select value={fs.sede ?? ''} onChange={(e) => setFs((f) => ({ ...f, sede: e.target.value || undefined }))}>
               <option value="">Todas</option>{SEDES.map((t) => <option key={t} value={t}>{t}</option>)}
             </Select>
           </Campo>
-          <Campo label="Servicio">
+          <Campo label="Servicio" className="shrink-0">
             <Select value={fs.servicio ?? ''} onChange={(e) => setFs((f) => ({ ...f, servicio: e.target.value || undefined }))}>
               <option value="">Todos</option>{SERVICIOS.map((t) => <option key={t} value={t}>{t}</option>)}
             </Select>
           </Campo>
-          <Campo label="Entidad">
+          <Campo label="Entidad" className="shrink-0">
             <Select value={fs.entidad ?? ''} onChange={(e) => setFs((f) => ({ ...f, entidad: e.target.value || undefined }))}>
               <option value="">Todas</option>{ENTIDADES.map((t) => <option key={t} value={t}>{t}</option>)}
             </Select>
           </Campo>
-          <Campo label="Experiencia global">
+          <Campo label="Experiencia global" className="shrink-0">
             <Select value={fs.experiencia ?? ''} onChange={(e) => setFs((f) => ({ ...f, experiencia: e.target.value || undefined }))}>
               <option value="">Todas</option>{EXPERIENCIA_GLOBAL.map((t) => <option key={t} value={t}>{t}</option>)}
             </Select>
           </Campo>
-          <Campo label="Desde"><input type="date" value={fs.desde ?? ''} onChange={(e) => setFs((f) => ({ ...f, desde: e.target.value || undefined }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Campo>
-          <Campo label="Hasta"><input type="date" value={fs.hasta ?? ''} onChange={(e) => setFs((f) => ({ ...f, hasta: e.target.value || undefined }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Campo>
-          <Boton variante="secundario" onClick={() => setFs({})}>Limpiar</Boton>
+          <Campo label="Desde" className="shrink-0"><input type="date" value={fs.desde ?? ''} onChange={(e) => setFs((f) => ({ ...f, desde: e.target.value || undefined }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Campo>
+          <Campo label="Hasta" className="shrink-0"><input type="date" value={fs.hasta ?? ''} onChange={(e) => setFs((f) => ({ ...f, hasta: e.target.value || undefined }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Campo>
+          <Boton variante="secundario" onClick={() => setFs({})} className="shrink-0">Limpiar</Boton>
         </FilterBar>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard titulo="Encuestas registradas" valor={sat.total} icono="🙂" color="azul" />
-          <MetricCard titulo="Promedio recepción" valor={sat.avgRecepcion} sub="sobre 5" icono="⭐" color="cyan" />
-          <MetricCard titulo="Promedio personal asistencial" valor={sat.avgPersonal} sub="sobre 5" icono="⭐" color="morado" />
-          <MetricCard titulo="Recomendaría la IPS" valor={`${sat.pctRecomienda}%`} icono="👍" color="verde" />
-        </div>
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
-          <h3 className="mb-3 text-sm font-semibold text-slate-600">Experiencia global</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={sat.porExperiencia}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="experiencia" tick={{ fontSize: 11 }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Bar dataKey="cantidad" radius={[6, 6, 0, 0]}>
-                {sat.porExperiencia.map((d) => <Cell key={d.experiencia} fill={EXPERIENCIA_COLORS[d.experiencia]?.hex ?? '#64748b'} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+        <div id="dashboard-satisfaccion" className="rounded-2xl bg-white p-4">
+          <EncabezadoExport titulo="Dashboard Satisfacción" filtrosTexto={filtrosTextoSat} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <MetricCard titulo="Encuestas registradas" valor={sat.total} icono="🙂" color="azul" />
+            <MetricCard titulo="Promedio recepción" valor={sat.avgRecepcion} sub="sobre 5" icono="⭐" color="cyan" />
+            <MetricCard titulo="Promedio personal asistencial" valor={sat.avgPersonal} sub="sobre 5" icono="⭐" color="morado" />
+            <MetricCard titulo="Recomendaría la IPS" valor={`${sat.pctRecomienda}%`} icono="👍" color="verde" />
+          </div>
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+            <h3 className="mb-3 text-sm font-semibold text-slate-600">Experiencia global</h3>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={sat.porExperiencia}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="experiencia" tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="cantidad" radius={[6, 6, 0, 0]}>
+                  {sat.porExperiencia.map((d) => <Cell key={d.experiencia} fill={EXPERIENCIA_COLORS[d.experiencia]?.hex ?? '#64748b'} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </section>
     </div>

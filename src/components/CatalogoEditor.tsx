@@ -18,8 +18,7 @@ export default function CatalogoEditor({ tabla, label, campoExtra, tieneOrden = 
 
   async function cargar() {
     const cols = ['id', 'nombre', 'activo', tieneOrden ? 'orden' : null, campoExtra?.key].filter(Boolean).join(',')
-    const q = supabase.from(tabla).select(cols)
-    const { data } = tieneOrden ? await q.order('orden') : await q.order('nombre')
+    const { data } = await supabase.from(tabla).select(cols).order('nombre')
     setFilas((data ?? []) as unknown as Fila[])
   }
   useEffect(() => { setFilas(null); void cargar() }, [tabla])

@@ -43,10 +43,10 @@ export function PageHeader({ titulo, subtitulo, acciones }:
 }
 
 // ---- Barra de filtros ----
-export function FilterBar({ children }: { children: ReactNode }) {
+export function FilterBar({ children, nowrap = false }: { children: ReactNode; nowrap?: boolean }) {
   return (
-    <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200
-                    bg-white p-4 shadow-sm">
+    <div className={`mb-4 flex items-end gap-3 rounded-xl border border-slate-200
+                    bg-white p-4 shadow-sm ${nowrap ? 'flex-nowrap overflow-x-auto' : 'flex-wrap'}`}>
       {children}
     </div>
   )

@@ -73,7 +73,10 @@ function ReportePqrsf() {
       { header: 'Colaborador', key: 'colaborador', width: 20 }, { header: 'Días hábiles', key: 'dias_habiles', width: 14 },
       { header: 'Descripción', key: 'descripcion', width: 40 }, { header: 'Fecha respuesta', key: 'fecha_respuesta', width: 16 },
       { header: 'Respondido por', key: 'respondido_por', width: 20 }, { header: 'Respuesta', key: 'respuesta', width: 40 },
-    ], filas)
+    ], filas, {
+      titulo: 'Reporte PQRSF',
+      filtrosTexto: [desde && `Desde ${desde}`, hasta && `Hasta ${hasta}`].filter(Boolean).join(' · ') || undefined,
+    })
   }
 
   return (
@@ -147,7 +150,10 @@ function ReporteSatisfaccion() {
       { header: 'Personal asistencial', key: 'personal', width: 16 }, { header: 'Comodidad', key: 'comodidad', width: 12 },
       { header: 'Experiencia global', key: 'experiencia', width: 16 }, { header: 'Motivo insatisfacción', key: 'motivo_insatisfaccion', width: 30 },
       { header: '¿Recomienda?', key: 'recomienda', width: 12 }, { header: 'Comentarios', key: 'comentarios', width: 40 },
-    ], filas)
+    ], filas, {
+      titulo: 'Reporte Satisfacción',
+      filtrosTexto: [desde && `Desde ${desde}`, hasta && `Hasta ${hasta}`].filter(Boolean).join(' · ') || undefined,
+    })
   }
 
   return (

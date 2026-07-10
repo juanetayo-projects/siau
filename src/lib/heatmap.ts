@@ -19,6 +19,18 @@ function diaSemana(iso: string): number {
   return (d.getDay() + 6) % 7 // 0=Lun .. 6=Dom
 }
 
+// Resumen de los valores más frecuentes de un campo dentro de una celda (para el tooltip).
+export function resumenCelda<T>(idxs: number[], filas: T[], campo: keyof T, top = 3): string {
+  if (idxs.length === 0) return ''
+  const conteo: Record<string, number> = {}
+  idxs.forEach((i) => {
+    const v = (filas[i]?.[campo] as unknown as string) || 'Sin dato'
+    conteo[v] = (conteo[v] ?? 0) + 1
+  })
+  return Object.entries(conteo).sort((a, b) => b[1] - a[1]).slice(0, top)
+    .map(([k, v]) => `${k} (${v})`).join('<br/>')
+}
+
 export function construirGrilla(fechas: string[]): { data: [number, number, number][]; max: number; celdas: Record<string, number[]> } {
   const grid: number[][] = Array.from({ length: 7 }, () => HORAS.map(() => 0))
   const celdas: Record<string, number[]> = {}

@@ -163,14 +163,14 @@ export default function RegistrarPqrsf() {
     async function cargar() {
       const [tipos, entidades, sedes, procesos, fuentes, tiposUsuario, convenios, regimenes, fallas, especialidades] = await Promise.all([
         supabase.from('lista_tipo_reporte').select('nombre').eq('activo', true).order('orden'),
-        supabase.from('lista_entidades').select('nombre').eq('activo', true).order('orden'),
-        supabase.from('lista_sedes').select('nombre').eq('activo', true).order('orden'),
-        supabase.from('lista_procesos').select('nombre,correo').eq('activo', true).order('orden'),
-        supabase.from('lista_fuentes').select('nombre').eq('activo', true).order('orden'),
+        supabase.from('lista_entidades').select('nombre').eq('activo', true).order('nombre'),
+        supabase.from('lista_sedes').select('nombre').eq('activo', true).order('nombre'),
+        supabase.from('lista_procesos').select('nombre,correo').eq('activo', true).order('nombre'),
+        supabase.from('lista_fuentes').select('nombre').eq('activo', true).order('nombre'),
         supabase.from('lista_tipo_usuario').select('nombre').eq('activo', true).order('orden'),
-        supabase.from('lista_convenios').select('nombre').eq('activo', true).order('orden'),
-        supabase.from('lista_regimen').select('nombre').eq('activo', true).order('orden'),
-        supabase.from('lista_fallas').select('nombre,grupo').eq('activo', true).order('orden'),
+        supabase.from('lista_convenios').select('nombre').eq('activo', true).order('nombre'),
+        supabase.from('lista_regimen').select('nombre').eq('activo', true).order('nombre'),
+        supabase.from('lista_fallas').select('nombre,grupo').eq('activo', true).order('nombre'),
         supabase.from('especialidades').select('nombre').eq('activo', true).order('nombre'),
       ])
       setListas({

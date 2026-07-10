@@ -7,9 +7,9 @@ export const TIPO_REPORTE_UI: Record<string, { icon: string; desc: string }> = {
 }
 
 export const TIPO_USUARIO_UI: Record<string, { icon: string }> = {
-  'Paciente': { icon: '🛏️' },
-  'Familiar': { icon: '👨‍👩‍👧' },
+  'Familiar/Paciente': { icon: '👨‍👩‍👧' },
   'Asegurador': { icon: '🛡️' },
+  'Ente de Control / SuperSalud': { icon: '🏛️' },
 }
 
 export const PLAZOS_RESPUESTA = ['24 horas', '48 horas', '72 horas', '1 a 5 días calendario']
