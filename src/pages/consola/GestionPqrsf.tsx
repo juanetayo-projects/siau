@@ -58,6 +58,36 @@ function BarraTiempoRespuesta({ r }: { r: Reporte }) {
   )
 }
 
+function TiempoGestionDetalle({ r }: { r: Reporte }) {
+  const cerrado = r.estado === 'Respondida' || r.estado === 'Cerrada'
+  const fechaInicio = r.fecha_apertura ?? r.created_at?.slice(0, 10)
+  const { plazoDias, diasRestantes, pct, estado } = calcularPlazo(r.dias_habiles, fechaInicio, cerrado)
+
+  if (estado === 'sin_plazo') {
+    return <p className="mb-4 text-sm text-slate-400">Sin plazo de respuesta definido para este PQRSF.</p>
+  }
+
+  const color = COLOR_PLAZO[estado]
+  let texto: string
+  if (estado === 'completado') texto = `${r.estado} — plazo de ${plazoDias} día(s) desde ${fechaInicio}`
+  else if (diasRestantes! < 0) texto = `Vencido hace ${Math.abs(diasRestantes!)} día(s)`
+  else if (diasRestantes === 0) texto = 'Vence hoy'
+  else texto = `Quedan ${diasRestantes} día(s) de ${plazoDias}`
+
+  return (
+    <div className="mb-4">
+      <div className="pqf-record-grid">
+        <Campo2 l="Plazo de respuesta" v={r.dias_habiles} />
+        <Campo2 l="Fecha de apertura" v={fechaInicio} />
+      </div>
+      <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+      </div>
+      <div className="mt-1 text-xs font-semibold" style={{ color }}>{texto}</div>
+    </div>
+  )
+}
+
 function FallaBadge({ falla }: { falla: string | null }) {
   if (!falla) return <span className="text-slate-300">—</span>
   const nivel = FALLA_SEMAFORO[falla] ?? 'verde'
@@ -236,6 +266,9 @@ export default function GestionPqrsf() {
               ))}
             </div>
 
+            <div className="pqf-section-title">Tiempo de gestión</div>
+            <TiempoGestionDetalle r={seleccionado} />
+
             <div className="pqf-section-title">Datos del reporte</div>
             <div className="pqf-record-grid">
               <Campo2 l="Entidad" v={seleccionado.entidad} /><Campo2 l="Sede" v={seleccionado.sede} />
@@ -268,7 +301,11 @@ export default function GestionPqrsf() {
             <div className="pqf-section-title" style={{ marginTop: 16 }}>Bitácora Abierto / Cerrado</div>
             <div className="mb-3 flex gap-2">
               <Boton variante="secundario" onClick={() => registrarEvento('Abierto')} disabled={registrandoEvento}>🔓 Marcar Abierto</Boton>
-              <Boton variante="secundario" onClick={() => registrarEvento('Cerrado')} disabled={registrandoEvento}>🔒 Marcar Cerrado</Boton>
+              <Boton variante="secundario" onClick={() => registrarEvento('Cerrado')} disabled={registrandoEvento || !resp}
+                title={!resp ? 'No se puede cerrar un PQRSF sin respuesta registrada' : undefined}>
+                🔒 Marcar Cerrado
+              </Boton>
+              {!resp && <span className="self-center text-xs text-amber-600">Requiere una respuesta registrada para poder cerrarse</span>}
             </div>
             {eventos.length === 0 ? (
               <p className="text-sm text-slate-400">Sin eventos registrados.</p>

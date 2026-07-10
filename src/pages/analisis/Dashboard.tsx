@@ -39,18 +39,22 @@ function EncabezadoExport({ titulo, filtrosTexto }: { titulo: string; filtrosTex
 
 function BotonesExportar({ elementId, titulo, filtrosTexto, archivo }: { elementId: string; titulo: string; filtrosTexto: string; archivo: string }) {
   const [exportando, setExportando] = useState('')
+  const [error, setError] = useState('')
   async function imagen() {
-    setExportando('imagen')
-    try { await exportarImagenSeccion(elementId, archivo) } finally { setExportando('') }
+    setExportando('imagen'); setError('')
+    try { await exportarImagenSeccion(elementId, archivo) } catch (e: any) { setError(e?.message ?? 'No se pudo generar la imagen.') } finally { setExportando('') }
   }
   async function pdf() {
-    setExportando('pdf')
-    try { await exportarPDFSeccion(elementId, titulo, filtrosTexto, archivo) } finally { setExportando('') }
+    setExportando('pdf'); setError('')
+    try { await exportarPDFSeccion(elementId, titulo, filtrosTexto, archivo) } catch (e: any) { setError(e?.message ?? 'No se pudo generar el PDF.') } finally { setExportando('') }
   }
   return (
-    <div className="flex gap-2">
-      <Boton variante="secundario" onClick={imagen} disabled={!!exportando}>{exportando === 'imagen' ? 'Generando…' : '🖼️ Imagen'}</Boton>
-      <Boton variante="secundario" onClick={pdf} disabled={!!exportando}>{exportando === 'pdf' ? 'Generando…' : '📄 PDF'}</Boton>
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex gap-2">
+        <Boton variante="secundario" onClick={imagen} disabled={!!exportando}>{exportando === 'imagen' ? 'Generando…' : '🖼️ Imagen'}</Boton>
+        <Boton variante="secundario" onClick={pdf} disabled={!!exportando}>{exportando === 'pdf' ? 'Generando…' : '📄 PDF'}</Boton>
+      </div>
+      {error && <span className="text-xs text-rose-600">⚠ {error}</span>}
     </div>
   )
 }
@@ -169,7 +173,7 @@ export default function Dashboard() {
             </Select>
           </Campo>
           <Campo label="Proceso" className="shrink-0">
-            <Select value={fp.proceso ?? ''} onChange={(e) => setFp((f) => ({ ...f, proceso: e.target.value || undefined }))}>
+            <Select value={fp.proceso ?? ''} onChange={(e) => setFp((f) => ({ ...f, proceso: e.target.value || undefined }))} className="w-36">
               <option value="">Todos</option>{procesosPqrsf.map((t) => <option key={t} value={t}>{t}</option>)}
             </Select>
           </Campo>

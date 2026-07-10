@@ -47,7 +47,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-64 flex-col overflow-y-auto bg-gradient-to-b from-[#0D2D6B] to-[#16468E] p-4 text-white">
+      <aside className="flex w-64 shrink-0 flex-col overflow-y-auto bg-gradient-to-b from-[#0D2D6B] to-[#16468E] p-4 text-white">
         <div className="mb-6 flex flex-col items-center gap-1 border-b border-white/15 pb-4">
           <img src={LOGO_BLANCO} alt="CAC" className="h-12 object-contain" />
           <span className="text-sm font-bold">SIAU</span>
@@ -74,7 +74,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </nav>
       </aside>
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex items-center justify-between gap-4
                            bg-gradient-to-r from-[#0D2D6B] to-[#16468E] px-6 py-3 text-white shadow-md">
           <div className="flex items-center gap-2">

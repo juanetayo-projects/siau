@@ -1,5 +1,8 @@
 // Exportación a imagen (PNG) y PDF de una sección del dashboard, con título y logo institucional.
-import html2canvas from 'html2canvas'
+// html2canvas-pro (no html2canvas) porque Tailwind v4 usa oklch()/color-mix() en sus
+// colores con nombre (emerald, amber, violet, cyan...) y el html2canvas original no los
+// soporta: lanza una excepción silenciosa y el botón de exportar "no hace nada".
+import html2canvas from 'html2canvas-pro'
 
 async function logoBase64(): Promise<string> {
   try {
@@ -24,16 +27,16 @@ function descargar(blob: Blob, archivo: string) {
 
 export async function exportarImagenSeccion(elementId: string, archivo: string) {
   const el = document.getElementById(elementId)
-  if (!el) return
+  if (!el) throw new Error(`No se encontró la sección a exportar (${elementId}).`)
   const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff' })
-  await new Promise<void>((resolve) => {
-    canvas.toBlob((blob) => { if (blob) descargar(blob, `${archivo}.png`); resolve() }, 'image/png')
+  await new Promise<void>((resolve, reject) => {
+    canvas.toBlob((blob) => { if (blob) { descargar(blob, `${archivo}.png`); resolve() } else { reject(new Error('No se pudo generar la imagen.')) } }, 'image/png')
   })
 }
 
 export async function exportarPDFSeccion(elementId: string, titulo: string, subtitulo: string, archivo: string) {
   const el = document.getElementById(elementId)
-  if (!el) return
+  if (!el) throw new Error(`No se encontró la sección a exportar (${elementId}).`)
   const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff' })
   const imgData = canvas.toDataURL('image/png')
 

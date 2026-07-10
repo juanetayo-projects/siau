@@ -91,6 +91,8 @@ function EditorPaleta({ modulo, titulo, onDirtyChange }: { modulo: ModuloHeatmap
       guardadoRef.current = JSON.stringify(colores)
       onDirtyChange(false)
       setMsg('Colores guardados.')
+    } catch (e: any) {
+      setMsg(`⚠ No se pudo guardar: ${e?.message ?? 'error desconocido'}`)
     } finally { setGuardando(false) }
   }
 
@@ -140,7 +142,7 @@ function EditorPaleta({ modulo, titulo, onDirtyChange }: { modulo: ModuloHeatmap
           <Boton variante="secundario" onClick={agregarColor}>+ Agregar color</Boton>
           <Boton variante="secundario" onClick={restaurar}>Restaurar por defecto</Boton>
         </div>
-        {msg && <p className="mt-3 text-sm text-emerald-700">{msg}</p>}
+        {msg && <p className={`mt-3 text-sm ${msg.startsWith('⚠') ? 'text-rose-600' : 'text-emerald-700'}`}>{msg}</p>}
         <div className="mt-4 flex justify-end">
           <Boton onClick={guardar} disabled={guardando || colores.length < 2}>{guardando ? 'Guardando…' : 'Guardar'}</Boton>
         </div>
