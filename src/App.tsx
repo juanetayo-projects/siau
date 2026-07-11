@@ -9,6 +9,7 @@ import ResponderPqrsf from './pages/respuesta/ResponderPqrsf'
 import GestionPqrsf from './pages/consola/GestionPqrsf'
 import GestionSatisfaccion from './pages/consola/GestionSatisfaccion'
 import Dashboard from './pages/analisis/Dashboard'
+import PanelEjecutivo from './pages/analisis/PanelEjecutivo'
 import Reportes from './pages/analisis/Reportes'
 import MapaCalorPqrsf from './pages/analisis/MapaCalorPqrsf'
 import MapaCalorSatisfaccion from './pages/analisis/MapaCalorSatisfaccion'
@@ -67,6 +68,9 @@ function AppRoutes() {
 
         <Route path="/analisis/dashboard" element={
           <RequiereSeccion seccion="analisis_pqrsf"><Dashboard /></RequiereSeccion>
+        } />
+        <Route path="/analisis/panel-ejecutivo" element={
+          <RequiereSeccion seccion="analisis_pqrsf"><PanelEjecutivo /></RequiereSeccion>
         } />
         <Route path="/analisis/reportes" element={
           <RequiereSeccion seccion="analisis_pqrsf"><Reportes /></RequiereSeccion>

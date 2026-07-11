@@ -20,6 +20,7 @@ const GRUPOS: Grupo[] = [
   ] },
   { titulo: 'Análisis', items: [
     { to: '/analisis/dashboard', label: 'Dashboard', icono: '📊', seccion: 'analisis_pqrsf' },
+    { to: '/analisis/panel-ejecutivo', label: 'Panel Ejecutivo', icono: '🧭', seccion: 'analisis_pqrsf' },
     { to: '/analisis/reportes', label: 'Reportes', icono: '📑', seccion: 'analisis_pqrsf' },
     { to: '/analisis/mapa-calor-pqrsf', label: 'Mapa de Calor PQRSF', icono: '🔥', seccion: 'analisis_pqrsf' },
     { to: '/analisis/mapa-calor-satisfaccion', label: 'Mapa de Calor Satisfacción', icono: '🔥', seccion: 'analisis_satisfaccion' },
