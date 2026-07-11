@@ -59,8 +59,9 @@ function AnilloSimple({ pct, color, tamano = 96, grosor = 10, children }:
   )
 }
 
-function AnillosConcentricos({ datos, tamano = 168, grosor = 14 }:
-  { datos: { nombre: string; valor: number; color: string }[]; tamano?: number; grosor?: number }) {
+function AnillosConcentricos({ datos, tamano = 168, grosor = 14, onSegmentClick }:
+  { datos: { nombre: string; valor: number; color: string }[]; tamano?: number; grosor?: number
+    onSegmentClick?: (nombre: string, e: React.MouseEvent) => void }) {
   const max = Math.max(1, ...datos.map((d) => d.valor))
   return (
     <svg width={tamano} height={tamano} className="-rotate-90 shrink-0">
@@ -73,11 +74,52 @@ function AnillosConcentricos({ datos, tamano = 168, grosor = 14 }:
           <g key={d.nombre}>
             <circle cx={tamano / 2} cy={tamano / 2} r={r} fill="none" stroke="#EAF0FA" strokeWidth={grosor} />
             <circle cx={tamano / 2} cy={tamano / 2} r={r} fill="none" stroke={d.color} strokeWidth={grosor}
-              strokeDasharray={c} strokeDashoffset={c - pct * c} strokeLinecap="round" />
+              strokeDasharray={c} strokeDashoffset={c - pct * c} strokeLinecap="round"
+              className={onSegmentClick ? 'cursor-pointer' : undefined}
+              onClick={onSegmentClick ? (e) => onSegmentClick(d.nombre, e) : undefined} />
           </g>
         )
       })}
     </svg>
+  )
+}
+
+type ColPopover = 'tipo' | 'estado' | 'fecha' | 'paciente'
+type FilaPopover = { id: number; tipo: string | null; estado: string | null; fecha: string | null; paciente: string | null }
+type PopoverState = { x: number; y: number; titulo: string; columnas: ColPopover[]; filas: FilaPopover[] } | null
+const ETIQ_COL: Record<ColPopover, string> = { tipo: 'Tipo', estado: 'Estado', fecha: 'Fecha', paciente: 'Paciente' }
+
+function Popover({ popover, onClose }: { popover: PopoverState; onClose: () => void }) {
+  if (!popover) return null
+  return (
+    <div className="fixed inset-0 z-40" onClick={onClose}>
+      <div className="fixed z-50 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-2xl"
+        style={{ left: popover.x, top: popover.y }} onClick={(e) => e.stopPropagation()}>
+        <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+          <span className="text-xs font-bold text-[#0D2D6B]">{popover.titulo}</span>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <div className="max-h-56 overflow-y-auto">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="text-left text-slate-400">
+                <th className="pb-1 pr-2 font-medium">Radicado</th>
+                {popover.columnas.map((c) => <th key={c} className="pb-1 pr-2 font-medium">{ETIQ_COL[c]}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {popover.filas.map((f) => (
+                <tr key={f.id} className="border-t border-slate-100">
+                  <td className="py-1 pr-2 align-top font-mono font-semibold text-[#0D2D6B]">{radicado(f.id)}</td>
+                  {popover.columnas.map((c) => <td key={c} className="py-1 pr-2 align-top text-slate-700">{f[c] || '—'}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {popover.filas.length === 0 && <p className="py-2 text-center text-slate-400">Sin casos.</p>}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -92,6 +134,21 @@ export default function PanelEjecutivo() {
   })
   const [mesCal, setMesCal] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() } })
   const [pagina, setPagina] = useState(1)
+  const [popover, setPopover] = useState<PopoverState>(null)
+
+  function aFila(r: Reporte): FilaPopover {
+    return { id: r.id, tipo: r.tipo_reporte, estado: r.estado, fecha: r.fecha_manifestacion, paciente: r.nombre_paciente }
+  }
+  function abrirPopover(e: { clientX?: number; clientY?: number } | undefined, titulo: string, columnas: ColPopover[], lista: Reporte[]) {
+    if (!lista.length) return
+    const cx = e?.clientX ?? window.innerWidth / 2
+    const cy = e?.clientY ?? window.innerHeight / 2
+    setPopover({
+      x: Math.max(8, Math.min(cx, window.innerWidth - 296)),
+      y: Math.max(8, Math.min(cy, window.innerHeight - 280)),
+      titulo, columnas, filas: lista.map(aFila),
+    })
+  }
 
   useEffect(() => {
     void supabase.from('reportes_pqrsf')
@@ -138,7 +195,7 @@ export default function PanelEjecutivo() {
   // ---- Casos por semana/día en el rango seleccionado ----
   const serieTiempo = useMemo(() => {
     const agruparPorDia = resumenPeriodo.dias <= 15
-    const grupos: Record<string, { orden: string; etiqueta: string; cantidad: number }> = {}
+    const grupos: Record<string, { orden: string; etiqueta: string; cantidad: number; reportes: Reporte[] }> = {}
     filtrados.forEach((r) => {
       if (!r.fecha_manifestacion) return
       const d = new Date(`${r.fecha_manifestacion}T00:00:00`)
@@ -151,8 +208,9 @@ export default function PanelEjecutivo() {
         clave = isoDate(lunes)
         etiqueta = `Sem ${lunes.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}`
       }
-      grupos[clave] = grupos[clave] ?? { orden: clave, etiqueta, cantidad: 0 }
+      grupos[clave] = grupos[clave] ?? { orden: clave, etiqueta, cantidad: 0, reportes: [] }
       grupos[clave].cantidad++
+      grupos[clave].reportes.push(r)
     })
     return Object.values(grupos).sort((a, b) => a.orden.localeCompare(b.orden))
   }, [filtrados, resumenPeriodo.dias])
@@ -190,16 +248,16 @@ export default function PanelEjecutivo() {
     const primerDia = new Date(y, m, 1)
     const diasEnMes = new Date(y, m + 1, 0).getDate()
     const offset = diaSemanaLunes0(isoDate(primerDia))
-    const conteos: Record<number, number> = {}
+    const porDia: Record<number, Reporte[]> = {}
     reportesSinFecha.forEach((r) => {
       if (!r.fecha_manifestacion) return
       const d = new Date(`${r.fecha_manifestacion}T00:00:00`)
-      if (d.getFullYear() === y && d.getMonth() === m) conteos[d.getDate()] = (conteos[d.getDate()] ?? 0) + 1
+      if (d.getFullYear() === y && d.getMonth() === m) (porDia[d.getDate()] ??= []).push(r)
     })
-    const max = Math.max(1, ...Object.values(conteos))
-    const celdas: ({ dia: number; cantidad: number } | null)[] = Array.from({ length: offset }, () => null)
-    for (let dia = 1; dia <= diasEnMes; dia++) celdas.push({ dia, cantidad: conteos[dia] ?? 0 })
-    const total = Object.values(conteos).reduce((a, b) => a + b, 0)
+    const max = Math.max(1, ...Object.values(porDia).map((a) => a.length))
+    const celdas: ({ dia: number; reportes: Reporte[] } | null)[] = Array.from({ length: offset }, () => null)
+    for (let dia = 1; dia <= diasEnMes; dia++) celdas.push({ dia, reportes: porDia[dia] ?? [] })
+    const total = Object.values(porDia).reduce((a, b) => a + b.length, 0)
     return { celdas, max, total }
   }, [reportesSinFecha, mesCal])
 
@@ -327,7 +385,11 @@ export default function PanelEjecutivo() {
               <XAxis dataKey="etiqueta" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="cantidad" fill="#16468E" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="cantidad" fill="#16468E" radius={[6, 6, 0, 0]} className="cursor-pointer"
+                onClick={(data: any, _i: number, e: any) => {
+                  const item = data?.payload ?? data
+                  abrirPopover(e, `${item.etiqueta} · ${item.cantidad} caso(s)`, ['tipo', 'estado', 'paciente'], item.reportes ?? [])
+                }} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -371,10 +433,16 @@ export default function PanelEjecutivo() {
           <div className="mt-1 grid grid-cols-7 gap-1">
             {calendario.celdas.map((c, i) => {
               if (!c) return <div key={i} />
-              const intensidad = c.cantidad === 0 ? 0 : Math.min(4, Math.ceil((c.cantidad / calendario.max) * 4))
+              const cantidad = c.reportes.length
+              const intensidad = cantidad === 0 ? 0 : Math.min(4, Math.ceil((cantidad / calendario.max) * 4))
               return (
-                <div key={i} title={`${c.dia}: ${c.cantidad} caso(s)`}
-                  className="flex aspect-square items-center justify-center rounded text-[10px] font-medium"
+                <div key={i} title={`${c.dia}: ${cantidad} caso(s)`}
+                  onClick={(e) => {
+                    if (!cantidad) return
+                    const fechaTxt = new Date(mesCal.y, mesCal.m, c.dia).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
+                    abrirPopover(e, `${fechaTxt} · ${cantidad} caso(s)`, ['tipo', 'estado', 'paciente'], c.reportes)
+                  }}
+                  className={`flex aspect-square items-center justify-center rounded text-[10px] font-medium ${cantidad ? 'cursor-pointer' : ''}`}
                   style={{ background: CAL_ESCALA[intensidad], color: intensidad >= 3 ? 'white' : '#334155' }}>
                   {c.dia}
                 </div>
@@ -387,7 +455,9 @@ export default function PanelEjecutivo() {
           <h3 className="mb-3 text-sm font-semibold text-slate-600">Distribución por tipo</h3>
           <div className="flex items-center gap-4">
             <div className="relative">
-              <AnillosConcentricos datos={porTipo.filter((t) => t.valor > 0)} />
+              <AnillosConcentricos datos={porTipo.filter((t) => t.valor > 0)}
+                onSegmentClick={(nombre, e) => abrirPopover(e, `${nombre} · ${porTipo.find((t) => t.nombre === nombre)?.valor ?? 0} caso(s)`,
+                  ['estado', 'fecha', 'paciente'], filtrados.filter((r) => (r.tipo_reporte || 'Sin tipo') === nombre))} />
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-xl font-bold text-[#0D2D6B]">{totalTipos}</span>
                 <span className="text-[10px] text-slate-400">casos</span>
@@ -395,7 +465,9 @@ export default function PanelEjecutivo() {
             </div>
             <div className="space-y-1.5 text-xs">
               {porTipo.map((t) => (
-                <div key={t.nombre} className="flex items-center gap-1.5">
+                <div key={t.nombre} className={`flex items-center gap-1.5 ${t.valor ? 'cursor-pointer hover:opacity-70' : ''}`}
+                  onClick={(e) => t.valor && abrirPopover(e, `${t.nombre} · ${t.valor} caso(s)`, ['estado', 'fecha', 'paciente'],
+                    filtrados.filter((r) => (r.tipo_reporte || 'Sin tipo') === t.nombre))}>
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: t.color }} />
                   <span className="text-slate-600">{t.nombre}</span>
                   <span className="font-semibold text-slate-800">{t.valor}</span>
@@ -500,6 +572,8 @@ export default function PanelEjecutivo() {
           </div>
         )}
       </div>
+
+      <Popover popover={popover} onClose={() => setPopover(null)} />
     </div>
   )
 }
