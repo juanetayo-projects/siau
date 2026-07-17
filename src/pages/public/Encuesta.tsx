@@ -46,8 +46,8 @@ export default function Encuesta() {
 
   if (enviado) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#EAF0FA] to-white p-4">
-        <div className="w-full max-w-md rounded-3xl bg-white p-10 text-center shadow-xl">
+      <div className="flex min-h-screen items-center justify-center bg-[#E3E6EC] p-4">
+        <div className="neu-card w-full max-w-md rounded-3xl p-10 text-center">
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-4xl">✓</div>
           <h2 className="mb-3 text-2xl font-bold text-gray-800">¡Gracias por su opinión!</h2>
           <p className="mb-8 text-gray-500">
@@ -60,7 +60,7 @@ export default function Encuesta() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#EAF0FA] via-white to-[#EAF0FA]">
+    <div className="min-h-screen bg-[#E3E6EC]">
       <div className="bg-gradient-to-r from-[#0D2D6B] to-[#16468E] text-white">
         <div className="mx-auto max-w-2xl px-4 py-8 text-center">
           <img src={LOGO_BLANCO} alt="Clínica de Alta Complejidad Santa Bárbara" className="mx-auto h-16 object-contain drop-shadow-md" />
@@ -70,7 +70,7 @@ export default function Encuesta() {
       </div>
 
       <form onSubmit={enviar} className="mx-auto max-w-2xl space-y-6 px-4 py-8">
-        <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-md">
+        <section className="neu-card rounded-2xl p-6">
           <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-[#0D2D6B]">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EAF0FA] text-xs font-bold text-[#0D2D6B]">1</span>
             Datos del paciente
@@ -88,7 +88,7 @@ export default function Encuesta() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-md">
+        <section className="neu-card rounded-2xl p-6">
           <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-[#0D2D6B]">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EAF0FA] text-xs font-bold text-[#0D2D6B]">2</span>
             Información de la atención
@@ -115,12 +115,12 @@ export default function Encuesta() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-md">
+        <section className="neu-card rounded-2xl p-6">
           <h2 className="mb-5 flex items-center gap-2 text-base font-bold text-[#0D2D6B]">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EAF0FA] text-xs font-bold text-[#0D2D6B]">3</span>
             Calificación del servicio
           </h2>
-          <p className="mb-5 rounded-xl bg-gray-50 px-4 py-2 text-xs text-gray-500">
+          <p className="neu-inset mb-5 rounded-xl px-4 py-2 text-xs text-gray-500">
             Seleccione un número del 1 al 5 siendo <strong>1 = Muy malo</strong> y <strong>5 = Excelente</strong>
           </p>
           <div className="space-y-6">
@@ -139,7 +139,7 @@ export default function Encuesta() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-md">
+        <section className="neu-card rounded-2xl p-6">
           <h2 className="mb-5 flex items-center gap-2 text-base font-bold text-[#0D2D6B]">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EAF0FA] text-xs font-bold text-[#0D2D6B]">4</span>
             Experiencia global
@@ -151,8 +151,8 @@ export default function Encuesta() {
               const selected = form.p4_experiencia_global === opt
               return (
                 <button key={opt} type="button" onClick={() => setForm((f) => ({ ...f, p4_experiencia_global: opt }))}
-                  className={`rounded-xl border-2 px-5 py-2.5 text-sm font-semibold transition-all duration-150 ${
-                    selected ? `${color.bg} ${color.text} scale-105 border-transparent shadow-md` : 'border-gray-200 bg-white text-gray-500 hover:border-gray-400'
+                  className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-150 ${
+                    selected ? `${color.bg} ${color.text} neu-btn-pressed scale-105` : 'neu-btn bg-white text-gray-500'
                   }`}>
                   {opt}
                 </button>
@@ -161,7 +161,7 @@ export default function Encuesta() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-md">
+        <section className="neu-card rounded-2xl p-6">
           <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-[#0D2D6B]">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EAF0FA] text-xs font-bold text-[#0D2D6B]">5</span>
             Información adicional
@@ -181,10 +181,10 @@ export default function Encuesta() {
               <div className="flex gap-3">
                 {(['Si', 'No'] as const).map((opt) => (
                   <button key={opt} type="button" onClick={() => setForm((f) => ({ ...f, p6_recomendaria: opt }))}
-                    className={`flex-1 rounded-xl border-2 py-3 text-sm font-bold transition-all ${
+                    className={`flex-1 rounded-xl py-3 text-sm font-bold transition-all ${
                       form.p6_recomendaria === opt
-                        ? opt === 'Si' ? 'border-green-500 bg-green-500 text-white shadow-md' : 'border-red-500 bg-red-500 text-white shadow-md'
-                        : 'border-gray-200 bg-white text-gray-500 hover:border-gray-400'
+                        ? opt === 'Si' ? 'neu-btn-pressed bg-green-500 text-white' : 'neu-btn-pressed bg-red-500 text-white'
+                        : 'neu-btn bg-white text-gray-500'
                     }`}>
                     {opt === 'Si' ? '👍 Sí' : '👎 No'}
                   </button>
@@ -198,7 +198,7 @@ export default function Encuesta() {
           </div>
         </section>
 
-        {error && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+        {error && <p className="neu-inset rounded-xl px-4 py-3 text-sm text-red-700">{error}</p>}
 
         <Boton type="submit" disabled={enviando || !form.sede || !form.entidad_salud || !form.servicio || !form.p6_recomendaria}
           className="w-full justify-center py-4 text-base">

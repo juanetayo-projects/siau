@@ -80,7 +80,7 @@ function ReportePqrsf() {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+    <section className="neu-card rounded-2xl p-5">
       <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#0D2D6B]">PQRSF</h2>
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <Campo label="Desde (fecha manifestación)"><Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} /></Campo>
@@ -157,7 +157,7 @@ function ReporteSatisfaccion() {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+    <section className="neu-card rounded-2xl p-5">
       <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#0D2D6B]">Satisfacción</h2>
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <Campo label="Desde"><Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} /></Campo>

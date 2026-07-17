@@ -99,7 +99,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             </button>
           </div>
         </header>
-        <main className="flex-1 overflow-auto bg-[#F4F6FB] p-6">{children}</main>
+        <main className="flex-1 overflow-auto bg-[#E3E6EC] p-6">{children}</main>
       </div>
     </div>
   )

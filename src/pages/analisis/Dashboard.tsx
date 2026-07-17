@@ -182,8 +182,8 @@ export default function Dashboard() {
               <option value="">Todos</option>{conveniosPqrsf.map((t) => <option key={t} value={t}>{t}</option>)}
             </Select>
           </Campo>
-          <Campo label="Desde" className="shrink-0"><input type="date" value={fp.desde ?? ''} onChange={(e) => setFp((f) => ({ ...f, desde: e.target.value || undefined }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Campo>
-          <Campo label="Hasta" className="shrink-0"><input type="date" value={fp.hasta ?? ''} onChange={(e) => setFp((f) => ({ ...f, hasta: e.target.value || undefined }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Campo>
+          <Campo label="Desde" className="shrink-0"><input type="date" value={fp.desde ?? ''} onChange={(e) => setFp((f) => ({ ...f, desde: e.target.value || undefined }))} className="neu-inset rounded-lg px-3 py-2 text-sm" /></Campo>
+          <Campo label="Hasta" className="shrink-0"><input type="date" value={fp.hasta ?? ''} onChange={(e) => setFp((f) => ({ ...f, hasta: e.target.value || undefined }))} className="neu-inset rounded-lg px-3 py-2 text-sm" /></Campo>
           <Boton variante="secundario" onClick={() => setFp({})} className="shrink-0">Limpiar</Boton>
         </FilterBar>
 
@@ -195,7 +195,7 @@ export default function Dashboard() {
             <MetricCard titulo="Respondidas / Cerradas" valor={pqrsf.respondidas} icono="✅" color="verde" />
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+            <div className="neu-card rounded-2xl p-5">
               <h3 className="mb-3 text-sm font-semibold text-slate-600">Por tipo de PQRSF</h3>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={pqrsf.porTipo}>
@@ -209,7 +209,7 @@ export default function Dashboard() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+            <div className="neu-card rounded-2xl p-5">
               <h3 className="mb-3 text-sm font-semibold text-slate-600">Por estado</h3>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={pqrsf.porEstado}>
@@ -253,8 +253,8 @@ export default function Dashboard() {
               <option value="">Todas</option>{EXPERIENCIA_GLOBAL.map((t) => <option key={t} value={t}>{t}</option>)}
             </Select>
           </Campo>
-          <Campo label="Desde" className="shrink-0"><input type="date" value={fs.desde ?? ''} onChange={(e) => setFs((f) => ({ ...f, desde: e.target.value || undefined }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Campo>
-          <Campo label="Hasta" className="shrink-0"><input type="date" value={fs.hasta ?? ''} onChange={(e) => setFs((f) => ({ ...f, hasta: e.target.value || undefined }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Campo>
+          <Campo label="Desde" className="shrink-0"><input type="date" value={fs.desde ?? ''} onChange={(e) => setFs((f) => ({ ...f, desde: e.target.value || undefined }))} className="neu-inset rounded-lg px-3 py-2 text-sm" /></Campo>
+          <Campo label="Hasta" className="shrink-0"><input type="date" value={fs.hasta ?? ''} onChange={(e) => setFs((f) => ({ ...f, hasta: e.target.value || undefined }))} className="neu-inset rounded-lg px-3 py-2 text-sm" /></Campo>
           <Boton variante="secundario" onClick={() => setFs({})} className="shrink-0">Limpiar</Boton>
         </FilterBar>
 
@@ -266,7 +266,7 @@ export default function Dashboard() {
             <MetricCard titulo="Promedio personal asistencial" valor={sat.avgPersonal} sub="sobre 5" icono="⭐" color="morado" />
             <MetricCard titulo="Recomendaría la IPS" valor={`${sat.pctRecomienda}%`} icono="👍" color="verde" />
           </div>
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+          <div className="mt-4 neu-card rounded-2xl p-5">
             <h3 className="mb-3 text-sm font-semibold text-slate-600">Experiencia global</h3>
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={sat.porExperiencia}>

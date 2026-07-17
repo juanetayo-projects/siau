@@ -93,7 +93,7 @@ function Popover({ popover, onClose }: { popover: PopoverState; onClose: () => v
   if (!popover) return null
   return (
     <div className="fixed inset-0 z-40" onClick={onClose}>
-      <div className="fixed z-50 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-2xl"
+      <div className="neu-card fixed z-50 w-72 rounded-xl p-3"
         style={{ left: popover.x, top: popover.y }} onClick={(e) => e.stopPropagation()}>
         <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
           <span className="text-xs font-bold text-[#0D2D6B]">{popover.titulo}</span>
@@ -351,11 +351,11 @@ export default function PanelEjecutivo() {
         </Campo>
         <Campo label="Desde" className="shrink-0">
           <input type="date" value={f.desde} max={f.hasta} onChange={(e) => setF((s) => ({ ...s, desde: e.target.value }))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            className="neu-inset rounded-lg px-3 py-2 text-sm" />
         </Campo>
         <Campo label="Hasta" className="shrink-0">
           <input type="date" value={f.hasta} min={f.desde} max={hoyIso} onChange={(e) => setF((s) => ({ ...s, hasta: e.target.value }))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            className="neu-inset rounded-lg px-3 py-2 text-sm" />
         </Campo>
         <Boton variante="secundario" className="shrink-0" onClick={() => setF((s) => ({ tipo: undefined, estado: undefined, sede: undefined, proceso: undefined, desde: s.desde, hasta: s.hasta }))}>
           Limpiar filtros
@@ -364,7 +364,7 @@ export default function PanelEjecutivo() {
 
       {/* Fila 1: resumen · casos en el rango · cumplimiento SLA */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+        <div className="neu-card rounded-2xl p-5">
           <h3 className="mb-3 text-sm font-semibold text-slate-600">Resumen del periodo</h3>
           <div className="text-xs text-slate-400">{f.desde} → {f.hasta} ({resumenPeriodo.dias} días)</div>
           <div className="mt-2 text-3xl font-bold text-[#0D2D6B]">{resumenPeriodo.total}</div>
@@ -376,7 +376,7 @@ export default function PanelEjecutivo() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+        <div className="neu-card rounded-2xl p-5">
           <h3 className="mb-3 text-sm font-semibold text-slate-600">Casos reportados en el rango</h3>
           <div className="text-2xl font-bold text-[#0D2D6B]">{filtrados.length} <span className="text-sm font-normal text-slate-400">total</span></div>
           <ResponsiveContainer width="100%" height={180}>
@@ -394,7 +394,7 @@ export default function PanelEjecutivo() {
           </ResponsiveContainer>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+        <div className="neu-card rounded-2xl p-5">
           <h3 className="mb-3 text-sm font-semibold text-slate-600">Cumplimiento de plazo (SLA)</h3>
           <div className="flex items-center gap-4">
             <AnilloSimple pct={sla.pct} color={sla.color}>
@@ -415,7 +415,7 @@ export default function PanelEjecutivo() {
 
       {/* Fila 2: calendario · anillos por tipo · alertas */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+        <div className="neu-card rounded-2xl p-5">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-600">Días con más PQRSF</h3>
             <div className="flex items-center gap-2 text-xs">
@@ -451,7 +451,7 @@ export default function PanelEjecutivo() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+        <div className="neu-card rounded-2xl p-5">
           <h3 className="mb-3 text-sm font-semibold text-slate-600">Distribución por tipo</h3>
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -478,7 +478,7 @@ export default function PanelEjecutivo() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+        <div className="neu-card rounded-2xl p-5">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-600">Alertas importantes</h3>
             <Badge texto={`${alertas.total} activas`} color="#dc2626" />
@@ -512,7 +512,7 @@ export default function PanelEjecutivo() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <MetricCard titulo="Tiempo promedio de respuesta" valor={respuestasInfo.tiempoPromedio} sub="días" icono="⏱️" color="morado" />
         <MetricCard titulo="Respondidas dentro del plazo" valor={respuestasInfo.pctATiempo != null ? `${respuestasInfo.pctATiempo}%` : '—'} sub={`${respuestasInfo.totalRespondidas} respondidas en el periodo`} icono="🎯" color="cyan" />
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+        <div className="neu-card rounded-2xl p-5">
           <h3 className="mb-3 text-sm font-semibold text-slate-600">Respuestas por colaborador</h3>
           {respuestasInfo.rankingLista.length === 0 ? (
             <p className="text-xs text-slate-400">Sin respuestas registradas en el periodo seleccionado.</p>
@@ -532,7 +532,7 @@ export default function PanelEjecutivo() {
       </div>
 
       {/* Tabla paginada */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+      <div className="neu-card rounded-2xl p-5">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-600">Listado de PQRSF ({filasOrdenadas.length})</h3>
           <Link to="/consola/pqrsf" className="text-xs font-medium text-[#16468E] hover:underline">Ir a Gestión PQRSF ↗</Link>

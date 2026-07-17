@@ -52,7 +52,7 @@ export default function MapaCalorPqrsf() {
   return (
     <div>
       <PageHeader titulo="Mapa de Calor PQRSF" subtitulo="Distribución de reportes por día de la semana y hora de registro" />
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+      <div className="neu-card rounded-2xl p-5">
         <ReactECharts option={option} style={{ height: 340, width: '100%' }} notMerge onEvents={onEvents} />
       </div>
 

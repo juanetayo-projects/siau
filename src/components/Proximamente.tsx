@@ -4,7 +4,7 @@ export default function Proximamente({ titulo, subtitulo, origen }: { titulo: st
   return (
     <div>
       <PageHeader titulo={titulo} subtitulo={subtitulo} />
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+      <div className="neu-card rounded-2xl p-10 text-center">
         <p className="text-4xl">🚧</p>
         <p className="mt-3 font-semibold text-[#0D2D6B]">Módulo en construcción dentro de SIAU</p>
         {origen && (

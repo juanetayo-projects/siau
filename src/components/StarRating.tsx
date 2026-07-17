@@ -15,10 +15,10 @@ export default function StarRating({ value, onChange, disabled = false }: {
               type="button"
               disabled={disabled}
               onClick={() => onChange?.(n)}
-              className={`aspect-square w-full rounded-xl border-2 text-base sm:text-lg font-bold transition-all duration-150 ${
+              className={`aspect-square w-full rounded-xl text-base sm:text-lg font-bold transition-all duration-150 ${
                 selected
-                  ? `${color.bg} ${color.text} ${color.border} scale-105 shadow-lg`
-                  : 'border-gray-200 bg-white text-gray-400 hover:scale-105 hover:border-gray-400'
+                  ? `${color.bg} ${color.text} neu-btn-pressed scale-105`
+                  : 'neu-btn bg-white text-gray-400 hover:scale-105'
               } ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
             >
               {n}

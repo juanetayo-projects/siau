@@ -78,7 +78,7 @@ export default function CompartirEncuesta() {
       <Boton variante="secundario" onClick={() => setAbierto(true)}>🔗 Compartir encuesta</Boton>
       <Modal open={abierto} onClose={() => setAbierto(false)} titulo="Compartir Encuesta de Satisfacción">
         <div className="flex flex-col items-center gap-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-inner">
+          <div className="neu-inset rounded-2xl p-4">
             <QRCodeCanvas
               ref={canvasRef}
               value={ENCUESTA_URL}
@@ -94,7 +94,7 @@ export default function CompartirEncuesta() {
             />
           </div>
           <Boton onClick={descargarPNG} className="w-full justify-center">⬇ Descargar QR (PNG)</Boton>
-          <div className="w-full rounded-xl bg-slate-50 p-3 text-center font-mono text-xs break-all text-slate-600">
+          <div className="neu-inset w-full rounded-xl p-3 text-center font-mono text-xs break-all text-slate-600">
             {ENCUESTA_URL}
           </div>
           <Boton variante="secundario" onClick={copiar} className="w-full justify-center">

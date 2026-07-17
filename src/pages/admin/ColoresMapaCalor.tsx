@@ -111,9 +111,9 @@ function EditorPaleta({ modulo, titulo, onDirtyChange }: { modulo: ModuloHeatmap
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+      <div className="neu-card rounded-2xl p-5">
         <h3 className="mb-3 font-semibold text-[#0D2D6B]">{titulo} · Paletas predefinidas</h3>
-        <div className="mb-5 max-h-64 overflow-auto rounded-lg border border-slate-200">
+        <div className="neu-inset mb-5 max-h-64 overflow-auto rounded-lg">
           {PALETAS_PREDEFINIDAS.map((p) => (
             <button key={p.nombre} onClick={() => setColores(p.colores)}
               className="flex w-full items-center gap-3 border-b border-slate-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-[#EAF0FA]">
@@ -148,7 +148,7 @@ function EditorPaleta({ modulo, titulo, onDirtyChange }: { modulo: ModuloHeatmap
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+      <div className="neu-card rounded-2xl p-5">
         <h3 className="mb-3 font-semibold text-[#0D2D6B]">Vista previa</h3>
         <ReactECharts option={option} style={{ height: 280, width: '100%' }} notMerge />
       </div>

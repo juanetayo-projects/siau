@@ -16,8 +16,8 @@ export function MetricCard({
     cyan: 'from-cyan-600 to-cyan-500',
   }
   return (
-    <div className={`rounded-2xl p-5 text-white shadow-lg ring-1 ring-black/5
-                     bg-gradient-to-br ${grad[color]} transition hover:shadow-xl hover:-translate-y-0.5`}>
+    <div className={`neu-card rounded-2xl p-5 text-white
+                     bg-gradient-to-br ${grad[color]} transition hover:-translate-y-0.5`}>
       <div className="flex items-center justify-between">
         <span className="text-sm/5 font-medium opacity-90">{titulo}</span>
         {icono && <span className="text-2xl opacity-90">{icono}</span>}
@@ -45,8 +45,8 @@ export function PageHeader({ titulo, subtitulo, acciones }:
 // ---- Barra de filtros ----
 export function FilterBar({ children, nowrap = false }: { children: ReactNode; nowrap?: boolean }) {
   return (
-    <div className={`mb-4 flex items-end gap-3 rounded-xl border border-slate-200
-                    bg-white p-4 shadow-sm ${nowrap ? 'flex-nowrap overflow-x-auto' : 'flex-wrap'}`}>
+    <div className={`neu-card mb-4 flex items-end gap-3 rounded-xl
+                    p-4 ${nowrap ? 'flex-nowrap overflow-x-auto' : 'flex-wrap'}`}>
       {children}
     </div>
   )
@@ -62,7 +62,7 @@ export function Campo({ label, children, className = '' }: { label: string; chil
 }
 
 const inputCls =
-  'rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#16468E] focus:ring-2 focus:ring-[#16468E]/20'
+  'neu-inset rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#16468E]/30'
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputCls} ${props.className ?? ''}`} />
@@ -78,9 +78,9 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
 export function Boton({ variante = 'primario', children, ...props }:
   React.ButtonHTMLAttributes<HTMLButtonElement> & { variante?: 'primario' | 'secundario' | 'peligro' | 'ghost' }) {
   const v: Record<string, string> = {
-    primario: 'bg-[#0D2D6B] text-white hover:bg-[#16468E]',
-    secundario: 'bg-white text-[#0D2D6B] border border-[#0D2D6B] hover:bg-[#EAF0FA]',
-    peligro: 'bg-rose-600 text-white hover:bg-rose-700',
+    primario: 'neu-btn bg-[#0D2D6B] text-white hover:bg-[#16468E]',
+    secundario: 'neu-btn bg-white text-[#0D2D6B] hover:text-[#16468E]',
+    peligro: 'neu-btn bg-rose-600 text-white hover:bg-rose-700',
     ghost: 'text-slate-600 hover:bg-slate-100',
   }
   return (
@@ -123,7 +123,7 @@ export function Modal({ open, onClose, titulo, children, ancho = 'max-w-lg' }:
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
          onClick={onClose}>
-      <div className={`w-full ${ancho} max-h-[90vh] overflow-auto rounded-2xl bg-white shadow-2xl`}
+      <div className={`neu-card w-full ${ancho} max-h-[90vh] overflow-auto rounded-2xl`}
            onClick={(e) => e.stopPropagation()}>
         {titulo && (
           <div className="sticky top-0 flex items-center justify-between rounded-t-2xl
@@ -141,7 +141,7 @@ export function Modal({ open, onClose, titulo, children, ancho = 'max-w-lg' }:
 // ---- Tabla con relieve, sombras y filas impares ----
 export function Tabla({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-auto rounded-xl border border-slate-200 bg-white shadow-md">
+    <div className="neu-table overflow-auto rounded-xl">
       <table className="w-full text-sm">{children}</table>
     </div>
   )

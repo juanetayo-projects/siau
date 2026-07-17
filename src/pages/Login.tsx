@@ -45,7 +45,7 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#0D2D6B] to-[#16468E] p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="neu-card w-full max-w-md overflow-hidden rounded-2xl">
         <div className="flex flex-col items-center gap-2 bg-gradient-to-r from-[#0D2D6B] to-[#16468E] px-8 py-6 text-white">
           <img src={LOGO_BLANCO} alt="CAC Santa Bárbara" className="h-14 object-contain" />
           <h1 className="text-lg font-bold">SIAU</h1>

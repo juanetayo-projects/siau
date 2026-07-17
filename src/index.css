@@ -6,12 +6,61 @@
   --color-azulsoft: #EAF0FA;
 }
 
+:root {
+  --neu-bg: #E3E6EC;
+  --neu-surface: #FFFFFF;
+  --neu-inset-bg: #EDF0F5;
+  --neu-light: rgba(255, 255, 255, 0.9);
+  --neu-dark: rgba(160, 174, 192, 0.55);
+}
+
 html, body, #root {
   height: 100%;
 }
 body {
   margin: 0;
   font-family: 'Segoe UI', system-ui, Arial, sans-serif;
-  background: #F4F6FB;
+  background: var(--neu-bg);
   color: #1e293b;
+}
+
+/* ---- Neumorfismo: superficies extruidas/hundidas sobre el mismo fondo gris ---- */
+.neu-card {
+  background: var(--neu-surface);
+  border: none;
+  box-shadow: 8px 8px 18px var(--neu-dark), -8px -8px 18px var(--neu-light);
+}
+.neu-card-sm {
+  background: var(--neu-surface);
+  border: none;
+  box-shadow: 5px 5px 12px var(--neu-dark), -5px -5px 12px var(--neu-light);
+}
+.neu-table {
+  background: var(--neu-surface);
+  border: none;
+  box-shadow: 6px 6px 16px var(--neu-dark), -6px -6px 16px var(--neu-light);
+}
+.neu-inset {
+  background: var(--neu-inset-bg);
+  border: none;
+  box-shadow: inset 3px 3px 7px var(--neu-dark), inset -3px -3px 7px var(--neu-light);
+}
+.neu-btn {
+  border: none;
+  box-shadow: 4px 4px 9px var(--neu-dark), -4px -4px 9px var(--neu-light);
+  transition: box-shadow .15s ease, transform .1s ease;
+}
+.neu-btn:hover:not(:disabled) {
+  box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
+}
+.neu-btn:active:not(:disabled) {
+  box-shadow: inset 2px 2px 5px var(--neu-dark), inset -2px -2px 5px var(--neu-light);
+  transform: translateY(1px);
+}
+.neu-btn:disabled {
+  box-shadow: 2px 2px 5px var(--neu-dark), -2px -2px 5px var(--neu-light);
+}
+.neu-btn-pressed {
+  border: none;
+  box-shadow: inset 3px 3px 7px var(--neu-dark), inset -3px -3px 7px var(--neu-light);
 }

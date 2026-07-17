@@ -72,7 +72,7 @@ export default function CatalogoEditor({ tabla, label, campoExtra, tieneOrden = 
   const activos = filas?.filter((f) => f.activo).length ?? null
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="neu-card rounded-2xl p-5">
       <div className="mb-3 flex items-center justify-between">
         <span className="font-semibold text-[#0D2D6B]">{label}</span>
         {activos != null && (
@@ -81,9 +81,9 @@ export default function CatalogoEditor({ tabla, label, campoExtra, tieneOrden = 
       </div>
       {!filas ? <Spinner /> : (
         <>
-          <div className="max-h-80 overflow-auto rounded-lg border border-slate-100">
+          <div className="neu-inset max-h-80 overflow-auto rounded-lg">
             {filas.map((f) => (
-              <div key={f.id} className="flex items-center gap-2 border-b border-slate-50 px-3 py-2 text-sm last:border-0">
+              <div key={f.id} className="flex items-center gap-2 border-b border-black/5 px-3 py-2 text-sm last:border-0">
                 <span className={`flex-1 ${!f.activo ? 'text-slate-400 line-through' : ''}`}>{f.nombre}</span>
                 {campoExtra && f[campoExtra.key] && <span className="text-xs text-slate-400">{f[campoExtra.key]}</span>}
                 <button onClick={() => alternarActivo(f)}
