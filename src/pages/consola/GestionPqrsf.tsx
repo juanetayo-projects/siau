@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import { FALLA_SEMAFORO, SEMAFORO_CFG } from '../../lib/pqrsf'
 import { calcularPlazo } from '../../lib/plazoRespuesta'
-import { PageHeader, FilterBar, Campo, Input, Select, Boton, Tabla, THead, TH, TR, TD, Modal, Spinner } from '../../components/ui'
+import { PageHeader, FilterBar, Campo, Input, Select, Boton, Tabla, THead, TH, TR, TD, Modal, Spinner, IconoOjo, IconoPapelera } from '../../components/ui'
 import '../../styles/pqrsf-form.css'
 
 const ESTADOS = ['Recibida', 'En gestión', 'Respondida', 'Cerrada']
@@ -242,9 +242,17 @@ export default function GestionPqrsf() {
                   <TD><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${ESTADO_BADGE[r.estado ?? 'Recibida']}`}>{r.estado ?? 'Recibida'}</span></TD>
                   <TD>{hasResp ? <span className="text-xs font-semibold text-emerald-600">Sí</span> : <span className="text-xs font-semibold text-slate-400">No</span>}</TD>
                   <TD>
-                    <div className="flex gap-2">
-                      <button onClick={() => abrir(r)} className="rounded-lg px-2 py-1 text-xs font-medium text-[#16468E] hover:bg-[#EAF0FA]">Ver</button>
-                      {esAdmin && <button onClick={() => setEliminarId(r.id)} className="rounded-lg px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50">Eliminar</button>}
+                    <div className="flex gap-1">
+                      <button onClick={() => abrir(r)} title="Ver" aria-label="Ver"
+                        className="rounded-lg p-1.5 text-[#16468E] hover:bg-[#EAF0FA]">
+                        <IconoOjo />
+                      </button>
+                      {esAdmin && (
+                        <button onClick={() => setEliminarId(r.id)} title="Eliminar" aria-label="Eliminar"
+                          className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50">
+                          <IconoPapelera />
+                        </button>
+                      )}
                     </div>
                   </TD>
                 </TR>

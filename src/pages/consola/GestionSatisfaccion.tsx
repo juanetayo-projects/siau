@@ -3,7 +3,7 @@ import { useAuth } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
 import { useSurveyData } from '../../hooks/useSurveyData'
 import { SEDES, SERVICIOS, RATING_COLORS, EXPERIENCIA_COLORS } from '../../lib/satisfaccion'
-import { PageHeader, FilterBar, Campo, Input, Select, Boton, Tabla, THead, TH, TR, TD, Modal, Spinner } from '../../components/ui'
+import { PageHeader, FilterBar, Campo, Input, Select, Boton, Tabla, THead, TH, TR, TD, Modal, Spinner, IconoOjo, IconoPapelera } from '../../components/ui'
 import CompartirEncuesta from '../../components/CompartirEncuesta'
 
 function RatingBadge({ value }: { value: number | null }) {
@@ -98,12 +98,15 @@ export default function GestionSatisfaccion() {
                     : <span className="text-xs font-semibold text-rose-500">No</span>}
                 </TD>
                 <TD>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setVerDetalle(row.id)} className="rounded-lg px-2 py-1 text-xs font-medium text-[#16468E] hover:bg-[#EAF0FA]">Ver</button>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setVerDetalle(row.id)} title="Ver" aria-label="Ver"
+                      className="rounded-lg p-1.5 text-[#16468E] hover:bg-[#EAF0FA]">
+                      <IconoOjo />
+                    </button>
                     {esAdmin && (
-                      <button onClick={() => eliminar(row.id)} disabled={eliminando === row.id}
-                        className="rounded-lg px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50">
-                        {eliminando === row.id ? '…' : 'Eliminar'}
+                      <button onClick={() => eliminar(row.id)} disabled={eliminando === row.id} title="Eliminar" aria-label="Eliminar"
+                        className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50 disabled:opacity-50">
+                        {eliminando === row.id ? '…' : <IconoPapelera />}
                       </button>
                     )}
                   </div>
