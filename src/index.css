@@ -30,6 +30,12 @@ body {
   border: none;
   box-shadow: 8px 8px 18px var(--neu-dark), -8px -8px 18px var(--neu-light);
 }
+/* Solo el shadow (sin background): para tarjetas con su propio color/gradiente,
+   ya que .neu-card usa `background` (shorthand) fuera de @layer y siempre le
+   gana al `background-image` de las utilidades de gradiente de Tailwind. */
+.neu-shadow {
+  box-shadow: 8px 8px 18px var(--neu-dark), -8px -8px 18px var(--neu-light);
+}
 .neu-card-sm {
   background: var(--neu-surface);
   border: none;

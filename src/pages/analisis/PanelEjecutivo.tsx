@@ -386,6 +386,7 @@ export default function PanelEjecutivo() {
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
               <Tooltip />
               <Bar dataKey="cantidad" fill="#16468E" radius={[6, 6, 0, 0]} className="cursor-pointer"
+                label={{ position: 'top', fontSize: 10, fill: '#475569' }}
                 onClick={(data: any, _i: number, e: any) => {
                   const item = data?.payload ?? data
                   abrirPopover(e, `${item.etiqueta} · ${item.cantidad} caso(s)`, ['tipo', 'estado', 'paciente'], item.reportes ?? [])
@@ -522,7 +523,7 @@ export default function PanelEjecutivo() {
                 <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10 }} />
                 <YAxis type="category" dataKey="nombre" width={100} tick={{ fontSize: 10 }} />
                 <Tooltip />
-                <Bar dataKey="cantidad" radius={[0, 6, 6, 0]}>
+                <Bar dataKey="cantidad" radius={[0, 6, 6, 0]} label={{ position: 'right', fontSize: 10, fill: '#475569' }}>
                   {respuestasInfo.rankingLista.map((_, i) => <Cell key={i} fill="#16468E" fillOpacity={1 - i * 0.1} />)}
                 </Bar>
               </BarChart>

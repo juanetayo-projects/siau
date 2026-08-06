@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
+import { Modal } from '../../components/ui'
 import '../../styles/pqrsf-form.css'
 
 const TIPO_CONFIG: Record<string, { color: string }> = {
@@ -34,6 +35,7 @@ export default function ResponderPqrsf() {
   const [buscando, setBuscando] = useState(false)
   const [noEncontrado, setNoEncontrado] = useState<string | null>(null)
   const [reporte, setReporte] = useState<Reporte | null>(null)
+  const [otroProceso, setOtroProceso] = useState<Reporte | null>(null)
 
   const [fechaRespuesta, setFechaRespuesta] = useState(new Date().toISOString().slice(0, 10))
   const [respondidoPor, setRespondidoPor] = useState(perfil?.nombre ?? '')
@@ -52,7 +54,7 @@ export default function ResponderPqrsf() {
     const match = radicadoInput.trim().match(/(\d+)$/)
     if (!match) { setErrores((e) => ({ ...e, 1: 'Formato inválido. Use: PQRSF-000001 o simplemente el número.' })); return }
     setErrores((e) => ({ ...e, 1: '' }))
-    setBuscando(true); setNoEncontrado(null); setReporte(null)
+    setBuscando(true); setNoEncontrado(null); setReporte(null); setOtroProceso(null)
     const id = parseInt(match[1], 10)
     const { data, error } = await supabase.from('reportes_pqrsf').select('*').eq('id', id).single()
     setBuscando(false)
@@ -62,7 +64,7 @@ export default function ResponderPqrsf() {
       const userProceso = perfil.proceso.trim().toLowerCase()
       const procesosReporte = (data.proceso ?? '').split(',').map((p: string) => p.trim().toLowerCase())
       if (!procesosReporte.includes(userProceso)) {
-        setNoEncontrado('Sin acceso a este radicado: pertenece a un proceso diferente al suyo. Si cree que es un error, contacte al administrador.')
+        setOtroProceso(data as Reporte)
         return
       }
     }
@@ -158,7 +160,7 @@ export default function ResponderPqrsf() {
   }
 
   function reiniciar() {
-    setStep(1); setRadicadoInput(''); setReporte(null); setNoEncontrado(null)
+    setStep(1); setRadicadoInput(''); setReporte(null); setNoEncontrado(null); setOtroProceso(null)
     setFechaRespuesta(new Date().toISOString().slice(0, 10)); setRespondidoPor(perfil?.nombre ?? '')
     setCorreoResponsable(''); setRespuestaTexto(''); setColaborador(''); setArchivo(null)
     setErrores({}); setErrorEnvio(''); setRadicadoFinal(''); setNotaCorreo('')
@@ -223,6 +225,27 @@ export default function ResponderPqrsf() {
                 <span className="ic">🔎</span>{noEncontrado}
               </div>
             )}
+
+            <Modal open={!!otroProceso} onClose={() => setOtroProceso(null)} titulo="Radicado de otro proceso">
+              {otroProceso && (
+                <div className="space-y-3 text-sm">
+                  <p className="pqf-not-found" style={{ margin: 0 }}>
+                    <span className="ic">⛔</span>
+                    Este radicado pertenece al proceso <b>{otroProceso.proceso || 'sin proceso asignado'}</b>, diferente al suyo
+                    (<b>{perfil?.proceso}</b>). Solo puede consultar sus datos básicos; no tiene permiso para gestionarlo.
+                    Si cree que es un error, contacte al administrador.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
+                    <div><span className="text-slate-500">Radicado:</span> <span className="font-medium">PQRSF-{String(otroProceso.id).padStart(6, '0')}</span></div>
+                    <div><span className="text-slate-500">Tipo:</span> {otroProceso.tipo_reporte || '—'}</div>
+                    <div><span className="text-slate-500">Estado:</span> {otroProceso.estado || 'Recibida'}</div>
+                    <div><span className="text-slate-500">Sede:</span> {otroProceso.sede || '—'}</div>
+                    <div><span className="text-slate-500">Proceso:</span> {otroProceso.proceso || '—'}</div>
+                    <div><span className="text-slate-500">Fecha manifestación:</span> {otroProceso.fecha_manifestacion || '—'}</div>
+                  </div>
+                </div>
+              )}
+            </Modal>
 
             {reporte && cfg && (
               <div className="pqf-card" style={{ marginTop: 16 }}>

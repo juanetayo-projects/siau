@@ -16,7 +16,7 @@ export function MetricCard({
     cyan: 'from-cyan-600 to-cyan-500',
   }
   return (
-    <div className={`neu-card rounded-2xl p-5 text-white
+    <div className={`neu-shadow rounded-2xl p-5 text-white
                      bg-gradient-to-br ${grad[color]} transition hover:-translate-y-0.5`}>
       <div className="flex items-center justify-between">
         <span className="text-sm/5 font-medium opacity-90">{titulo}</span>

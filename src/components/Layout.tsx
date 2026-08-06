@@ -48,7 +48,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-64 shrink-0 flex-col overflow-y-auto bg-gradient-to-b from-[#0D2D6B] to-[#16468E] p-4 text-white">
+      <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto bg-gradient-to-b from-[#0D2D6B] to-[#16468E] p-4 text-white">
         <div className="mb-6 flex flex-col items-center gap-1 border-b border-white/15 pb-4">
           <img src={LOGO_BLANCO} alt="CAC" className="h-12 object-contain" />
           <span className="text-sm font-bold">SIAU</span>

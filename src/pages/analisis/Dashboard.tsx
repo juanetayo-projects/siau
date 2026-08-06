@@ -203,7 +203,7 @@ export default function Dashboard() {
                   <XAxis dataKey="tipo" tick={{ fontSize: 11 }} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="cantidad" radius={[6, 6, 0, 0]}>
+                  <Bar dataKey="cantidad" radius={[6, 6, 0, 0]} label={{ position: 'top', fontSize: 11, fill: '#475569' }}>
                     {pqrsf.porTipo.map((d) => <Cell key={d.tipo} fill={TIPO_COLOR[d.tipo] ?? '#64748b'} />)}
                   </Bar>
                 </BarChart>
@@ -217,7 +217,7 @@ export default function Dashboard() {
                   <XAxis dataKey="estado" tick={{ fontSize: 11 }} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="cantidad" radius={[6, 6, 0, 0]}>
+                  <Bar dataKey="cantidad" radius={[6, 6, 0, 0]} label={{ position: 'top', fontSize: 11, fill: '#475569' }}>
                     {pqrsf.porEstado.map((d) => <Cell key={d.estado} fill={ESTADO_COLOR[d.estado] ?? '#64748b'} />)}
                   </Bar>
                 </BarChart>
@@ -274,7 +274,7 @@ export default function Dashboard() {
                 <XAxis dataKey="experiencia" tick={{ fontSize: 11 }} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Bar dataKey="cantidad" radius={[6, 6, 0, 0]}>
+                <Bar dataKey="cantidad" radius={[6, 6, 0, 0]} label={{ position: 'top', fontSize: 11, fill: '#475569' }}>
                   {sat.porExperiencia.map((d) => <Cell key={d.experiencia} fill={EXPERIENCIA_COLORS[d.experiencia]?.hex ?? '#64748b'} />)}
                 </Bar>
               </BarChart>
