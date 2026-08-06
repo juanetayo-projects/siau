@@ -19,6 +19,7 @@ export default function Encuesta() {
   const [enviando, setEnviando] = useState(false)
   const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState('')
+  const experienciaBuena = form.p4_experiencia_global === 'Muy buena' || form.p4_experiencia_global === 'Buena'
 
   function cambiar(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     const { name, value } = e.target
@@ -150,7 +151,10 @@ export default function Encuesta() {
               const color = EXPERIENCIA_COLORS[opt]
               const selected = form.p4_experiencia_global === opt
               return (
-                <button key={opt} type="button" onClick={() => setForm((f) => ({ ...f, p4_experiencia_global: opt }))}
+                <button key={opt} type="button" onClick={() => setForm((f) => ({
+                    ...f, p4_experiencia_global: opt,
+                    p5_motivo_insatisfaccion: opt === 'Muy buena' || opt === 'Buena' ? '' : f.p5_motivo_insatisfaccion,
+                  }))}
                   className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-150 ${
                     selected ? `${color.bg} ${color.text} neu-btn-pressed scale-105` : 'neu-btn bg-white text-gray-500'
                   }`}>
@@ -167,9 +171,9 @@ export default function Encuesta() {
             Información adicional
           </h2>
           <div className="space-y-4">
-            <Campo label="Motivo de insatisfacción (opcional)">
-              <Select name="p5_motivo_insatisfaccion" value={form.p5_motivo_insatisfaccion} onChange={cambiar}>
-                <option value="">— Seleccione —</option>
+            <Campo label={`Motivo de insatisfacción${experienciaBuena ? '' : ' (opcional)'}`}>
+              <Select name="p5_motivo_insatisfaccion" value={form.p5_motivo_insatisfaccion} onChange={cambiar} disabled={experienciaBuena}>
+                <option value="">{experienciaBuena ? '— No aplica —' : '— Seleccione —'}</option>
                 {MOTIVOS_INSATISFACCION.map((m) => <option key={m} value={m}>{m}</option>)}
               </Select>
             </Campo>

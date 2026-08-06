@@ -6,6 +6,8 @@ import { SEDES, SERVICIOS, RATING_COLORS, EXPERIENCIA_COLORS } from '../../lib/s
 import { PageHeader, FilterBar, Campo, Input, Select, Boton, Tabla, THead, TH, TR, TD, Modal, Spinner, IconoOjo, IconoPapelera } from '../../components/ui'
 import CompartirEncuesta from '../../components/CompartirEncuesta'
 
+const ENCUESTA_URL = `${window.location.origin}${import.meta.env.BASE_URL}#/encuesta`
+
 function RatingBadge({ value }: { value: number | null }) {
   if (!value) return <span className="text-slate-300">—</span>
   const c = RATING_COLORS[value]
@@ -40,7 +42,11 @@ export default function GestionSatisfaccion() {
 
   return (
     <div>
-      <PageHeader titulo="Gestión Satisfacción" subtitulo={`${total.toLocaleString()} encuestas registradas`} acciones={<CompartirEncuesta />} />
+      <PageHeader titulo="Gestión Satisfacción" subtitulo={`${total.toLocaleString()} encuestas registradas`}
+        acciones={<>
+          <Boton variante="secundario" onClick={() => window.open(ENCUESTA_URL, '_blank')}>📝 Diligenciar encuesta</Boton>
+          <CompartirEncuesta />
+        </>} />
 
       <FilterBar>
         <Campo label="Buscar" className="min-w-56">
