@@ -102,15 +102,17 @@ function Popover({ popover, onClose }: { popover: PopoverState; onClose: () => v
         <div className="max-h-56 overflow-y-auto">
           <table className="w-full text-[11px]">
             <thead>
-              <tr className="text-left text-slate-400">
-                <th className="pb-1 pr-2 font-medium">Radicado</th>
-                {popover.columnas.map((c) => <th key={c} className="pb-1 pr-2 font-medium">{ETIQ_COL[c]}</th>)}
+              <tr className="bg-gradient-to-r from-[#0D2D6B] to-[#16468E] text-left text-white">
+                <th className="py-1.5 pr-2 pl-2 font-medium first:rounded-l-md">Radicado</th>
+                {popover.columnas.map((c, i) => (
+                  <th key={c} className={`py-1.5 pr-2 font-medium ${i === popover.columnas.length - 1 ? 'rounded-r-md' : ''}`}>{ETIQ_COL[c]}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {popover.filas.map((f) => (
                 <tr key={f.id} className="border-t border-slate-100">
-                  <td className="py-1 pr-2 align-top font-mono font-semibold text-[#0D2D6B]">{radicado(f.id)}</td>
+                  <td className="py-1 pr-2 pl-2 align-top font-mono font-semibold text-[#0D2D6B]">{radicado(f.id)}</td>
                   {popover.columnas.map((c) => <td key={c} className="py-1 pr-2 align-top text-slate-700">{f[c] || '—'}</td>)}
                 </tr>
               ))}

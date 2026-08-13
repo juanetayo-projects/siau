@@ -84,6 +84,7 @@ export default function Usuarios() {
             <Campo label="Rol">
               <Select value={editando.rol} onChange={(e) => setEditando({ ...editando, rol: e.target.value as Rol })}>
                 <option value="analista">Analista</option>
+                <option value="gestor">Gestor</option>
                 <option value="admin">Administrador</option>
               </Select>
             </Campo>
@@ -158,6 +159,7 @@ function NuevoUsuarioModal({ onClose, onCreado }: { onClose: () => void; onCread
         <Campo label="Rol">
           <Select value={rol} onChange={(e) => setRol(e.target.value as Rol)}>
             <option value="analista">Analista</option>
+            <option value="gestor">Gestor</option>
             <option value="admin">Administrador</option>
           </Select>
         </Campo>

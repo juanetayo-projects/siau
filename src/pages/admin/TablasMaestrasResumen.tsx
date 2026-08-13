@@ -7,7 +7,7 @@ const CATALOGOS = [
   { tabla: 'especialidades', label: 'Especialidades', tieneOrden: false },
   { tabla: 'lista_convenios', label: 'Convenios / EPS' },
   { tabla: 'lista_entidades', label: 'Entidades' },
-  { tabla: 'lista_fallas', label: 'Fallas / Atributos', campoExtra: { key: 'grupo' as const, label: 'Grupo' } },
+  { tabla: 'lista_fallas', label: 'Fallas / Atributos', campoExtra: { key: 'grupo' as const, label: 'Grupo' }, tieneColor: true },
   { tabla: 'lista_fuentes', label: 'Fuentes' },
   { tabla: 'lista_procesos', label: 'Procesos / Servicios', campoExtra: { key: 'correo' as const, label: 'Correo de notificación' } },
   { tabla: 'lista_regimen', label: 'Régimen' },
@@ -33,7 +33,7 @@ export default function TablasMaestrasResumen() {
           </button>
         ))}
       </div>
-      <CatalogoEditor key={catalogo.tabla} tabla={catalogo.tabla} label={catalogo.label} campoExtra={catalogo.campoExtra} tieneOrden={catalogo.tieneOrden} />
+      <CatalogoEditor key={catalogo.tabla} tabla={catalogo.tabla} label={catalogo.label} campoExtra={catalogo.campoExtra} tieneOrden={catalogo.tieneOrden} tieneColor={catalogo.tieneColor} />
     </div>
   )
 }

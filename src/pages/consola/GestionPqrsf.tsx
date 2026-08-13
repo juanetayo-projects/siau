@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
-import { FALLA_SEMAFORO, SEMAFORO_CFG } from '../../lib/pqrsf'
+import { SEMAFORO_CFG, type Semaforo } from '../../lib/pqrsf'
 import { calcularPlazo } from '../../lib/plazoRespuesta'
 import { PageHeader, FilterBar, Campo, Input, Select, Boton, Tabla, THead, TH, TR, TD, Modal, Spinner, IconoOjo, IconoPapelera } from '../../components/ui'
 import '../../styles/pqrsf-form.css'
@@ -88,10 +88,9 @@ function TiempoGestionDetalle({ r }: { r: Reporte }) {
   )
 }
 
-function FallaBadge({ falla }: { falla: string | null }) {
+function FallaBadge({ falla, colores }: { falla: string | null; colores: Record<string, Semaforo> }) {
   if (!falla) return <span className="text-slate-300">—</span>
-  const nivel = FALLA_SEMAFORO[falla] ?? 'verde'
-  const cfg = SEMAFORO_CFG[nivel]
+  const cfg = SEMAFORO_CFG[colores[falla] ?? 'amarillo']
   return (
     <span className="inline-flex max-w-[220px] items-center gap-1.5 whitespace-normal rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: cfg.bg, color: cfg.fg }}>
       <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: cfg.dot }} />{falla}
@@ -114,14 +113,19 @@ export default function GestionPqrsf() {
   const [eliminarId, setEliminarId] = useState<number | null>(null)
   const [eventos, setEventos] = useState<Evento[]>([])
   const [registrandoEvento, setRegistrandoEvento] = useState(false)
+  const [fallaColores, setFallaColores] = useState<Record<string, Semaforo>>({})
 
   async function cargar() {
     setCargando(true)
-    const { data } = await supabase
-      .from('reportes_pqrsf')
-      .select('*, respuestas_pqrsf(id,fecha_respuesta,respuesta,colaborador,respondido_por_nombre,respondido_por_email,archivo_url,archivo_nombre)')
-      .order('id', { ascending: false })
+    const [{ data }, { data: fallas }] = await Promise.all([
+      supabase
+        .from('reportes_pqrsf')
+        .select('*, respuestas_pqrsf(id,fecha_respuesta,respuesta,colaborador,respondido_por_nombre,respondido_por_email,archivo_url,archivo_nombre)')
+        .order('id', { ascending: false }),
+      supabase.from('lista_fallas').select('nombre,color'),
+    ])
     setRegistros((data ?? []) as Reporte[])
+    setFallaColores(Object.fromEntries((fallas ?? []).map((f: any) => [f.nombre, f.color as Semaforo])))
     setCargando(false)
   }
   useEffect(() => { void cargar() }, [])
@@ -237,7 +241,7 @@ export default function GestionPqrsf() {
                   <TD className="max-w-[150px] truncate">{r.nombre_paciente || '—'}</TD>
                   <TD className="max-w-[130px] truncate text-xs">{r.entidad || '—'}</TD>
                   <TD className="max-w-[130px] truncate text-xs">{r.sede || '—'}</TD>
-                  <TD><FallaBadge falla={r.falla_atributo} /></TD>
+                  <TD><FallaBadge falla={r.falla_atributo} colores={fallaColores} /></TD>
                   <TD className="whitespace-nowrap text-xs">{r.fecha_manifestacion ? new Date(r.fecha_manifestacion + 'T12:00:00').toLocaleDateString('es-CO') : '—'}</TD>
                   <TD><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${ESTADO_BADGE[r.estado ?? 'Recibida']}`}>{r.estado ?? 'Recibida'}</span></TD>
                   <TD>{hasResp ? <span className="text-xs font-semibold text-emerald-600">Sí</span> : <span className="text-xs font-semibold text-slate-400">No</span>}</TD>
@@ -286,7 +290,7 @@ export default function GestionPqrsf() {
               <Campo2 l="Teléfono" v={seleccionado.telefono} /><Campo2 l="Correo" v={seleccionado.email_reporta} />
               <Campo2 l="Especialidad" v={seleccionado.especialidad} /><Campo2 l="Colaborador" v={seleccionado.colaborador} />
             </div>
-            <div style={{ marginBottom: 12 }}><FallaBadge falla={seleccionado.falla_atributo} /></div>
+            <div style={{ marginBottom: 12 }}><FallaBadge falla={seleccionado.falla_atributo} colores={fallaColores} /></div>
             {seleccionado.descripcion && (
               <div className="pqf-record-desc"><div className="pqf-record-label">Descripción</div><div className="pqf-record-value">{seleccionado.descripcion}</div></div>
             )}

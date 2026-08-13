@@ -14,40 +14,23 @@ export const TIPO_USUARIO_UI: Record<string, { icon: string }> = {
 
 export const PLAZOS_RESPUESTA = ['24 horas', '48 horas', '72 horas', '1 a 5 días calendario']
 
-export const FALLA_SEMAFORO: Record<string, 'verde' | 'amarillo' | 'rojo'> = {
-  '1. Caída del sistema': 'verde', '1. Cambio de Profesional': 'verde',
-  '1. No entrega de Resultados': 'verde', '1. No responde el contact center': 'verde',
-  '1. Retraso en admisión': 'verde', '1. Servicio no contratado': 'verde',
-  '1. Servicio no disponible en la sede': 'verde',
-  '1. Valor elevado en tarifa (cuota moderadora, copago, cotización particular)': 'amarillo',
-  '2. Administración tardía de medicamentos y/o conductas': 'amarillo',
-  '2. Demora en los trámites de remisión': 'amarillo',
-  '2. Inoportunidad en la programación de ayudas diagnostica intrahospitalarias': 'amarillo',
-  '2. No disponibilidad de agenda': 'verde', '2. No recibió llamada de retorno': 'verde',
-  '2. Recurso limitado': 'amarillo', '2. Reprogramación de cita o turno': 'verde',
-  '2. Retraso en la atención': 'amarillo', '2. Retraso en la entrega de resultados': 'verde',
-  '2. Retraso en la programación de procedimientos': 'verde',
-  '2. Retraso en la respuesta interconsulta': 'verde',
-  '3. Daño en infraestructura': 'verde', '3. Identificación incorrecta del paciente': 'amarillo',
-  '3. Limpieza': 'verde', '3. Procedimiento asistencial inapropiado': 'amarillo',
-  '4. Errores en formulas': 'verde', '4. Inconformidad con tratamiento': 'rojo',
-  '4. Información Errada': 'rojo', '4. Retraso en autorización home care': 'amarillo',
-  '5. Falta de información al paciente para su intervención': 'rojo',
-  '6. Calidad/cantidad en la alimentación': 'verde',
-  '6. Disposición y flexibilidad de quien le atiende': 'verde',
-  '6. Instalaciones no confortables': 'amarillo', '6. Ruido': 'amarillo',
-  '6. Trato humanizado': 'rojo', '7. Felicitaciones': 'verde',
-}
+// Tipos de usuario para los que el plazo de respuesta se resalta en rojo (asegurador / control).
+export const TIPOS_USUARIO_ALERTA_ROJA = ['Asegurador', 'Ente de Control / SuperSalud']
 
-export const SEMAFORO_CFG: Record<'verde' | 'amarillo' | 'rojo', { bg: string; fg: string; dot: string; label: string }> = {
-  verde: { bg: '#dcfce7', fg: '#15803d', dot: '#16a34a', label: 'Verde' },
+export type Semaforo = 'amarillo' | 'naranja' | 'rojo'
+
+// El color de cada Falla/Atributo ya no es un mapa estático: se edita en
+// Administrador > Tablas maestras > Fallas / Atributos y vive en la columna
+// `color` de `lista_fallas` (ver ListaFalla).
+export const SEMAFORO_CFG: Record<Semaforo, { bg: string; fg: string; dot: string; label: string }> = {
   amarillo: { bg: '#fef9c3', fg: '#92400e', dot: '#ca8a04', label: 'Amarillo' },
+  naranja: { bg: '#ffedd5', fg: '#9a3412', dot: '#f97316', label: 'Naranja' },
   rojo: { bg: '#fee2e2', fg: '#991b1b', dot: '#dc2626', label: 'Rojo' },
 }
 
 export type ListaItem = { nombre: string }
 export type ListaProceso = { nombre: string; correo: string | null }
-export type ListaFalla = { nombre: string; grupo: string | null }
+export type ListaFalla = { nombre: string; grupo: string | null; color: Semaforo }
 
 export const CAMPOS_PERMITIDOS_REPORTE = [
   'tipo_reporte', 'entidad', 'sede', 'proceso', 'fecha_manifestacion', 'fuente',

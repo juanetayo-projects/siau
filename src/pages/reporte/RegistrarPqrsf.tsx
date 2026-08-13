@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import '../../styles/pqrsf-form.css'
 import {
-  TIPO_REPORTE_UI, TIPO_USUARIO_UI, PLAZOS_RESPUESTA, FALLA_SEMAFORO, SEMAFORO_CFG,
+  TIPO_REPORTE_UI, TIPO_USUARIO_UI, PLAZOS_RESPUESTA, SEMAFORO_CFG, TIPOS_USUARIO_ALERTA_ROJA,
   CAMPOS_PERMITIDOS_REPORTE, type ListaItem, type ListaProceso, type ListaFalla,
 } from '../../lib/pqrsf'
 
@@ -105,8 +105,8 @@ function FallaSelect({ fallas, valor, onChange }: { fallas: ListaFalla[]; valor:
     return () => document.removeEventListener('mousedown', fuera)
   }, [])
 
-  const nivel = valor ? FALLA_SEMAFORO[valor] : undefined
-  const cfg = nivel ? SEMAFORO_CFG[nivel] : null
+  const seleccionada = valor ? fallas.find((f) => f.nombre === valor) : undefined
+  const cfg = seleccionada ? SEMAFORO_CFG[seleccionada.color] : null
 
   return (
     <div className="pqf-falla-wrap" ref={ref}>
@@ -126,8 +126,7 @@ function FallaSelect({ fallas, valor, onChange }: { fallas: ListaFalla[]; valor:
             <div key={grupo}>
               <div className="pqf-falla-group">{grupo}</div>
               {items.map((f) => {
-                const n = FALLA_SEMAFORO[f.nombre] ?? 'verde'
-                const c = SEMAFORO_CFG[n]
+                const c = SEMAFORO_CFG[f.color]
                 return (
                   <div key={f.nombre} className="pqf-falla-item" onClick={() => { onChange(f.nombre); setAbierto(false) }}>
                     <span className="pqf-falla-badge" style={{ background: c.bg, color: c.fg }}>
@@ -169,8 +168,8 @@ export default function RegistrarPqrsf() {
         supabase.from('lista_fuentes').select('nombre').eq('activo', true).order('nombre'),
         supabase.from('lista_tipo_usuario').select('nombre').eq('activo', true).order('orden'),
         supabase.from('lista_convenios').select('nombre').eq('activo', true).order('nombre'),
-        supabase.from('lista_regimen').select('nombre').eq('activo', true).order('nombre'),
-        supabase.from('lista_fallas').select('nombre,grupo').eq('activo', true).order('nombre'),
+        supabase.from('lista_regimen').select('nombre').eq('activo', true).order('orden'),
+        supabase.from('lista_fallas').select('nombre,grupo,color').eq('activo', true).order('nombre'),
         supabase.from('especialidades').select('nombre').eq('activo', true).order('nombre'),
       ])
       setListas({
@@ -495,7 +494,7 @@ export default function RegistrarPqrsf() {
               <div className="pqf-field full"><label>Días hábiles para responder <span className="req">*</span></label>
                 <div className="pqf-plazo-options">
                   {PLAZOS_RESPUESTA.map((p) => (
-                    <div key={p} className={`pqf-plazo-option${plazo === p ? ' sel' : ''}`} onClick={() => setPlazo(p)}>
+                    <div key={p} className={`pqf-plazo-option${plazo === p ? ' sel' : ''}${TIPOS_USUARIO_ALERTA_ROJA.includes(tipoUsuario) ? ' alerta' : ''}`} onClick={() => setPlazo(p)}>
                       <span className="pqf-plazo-radio" /><span className="pqf-plazo-text">{p}</span>
                     </div>
                   ))}

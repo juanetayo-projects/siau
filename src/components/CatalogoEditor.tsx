@@ -1,23 +1,28 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Boton, Input, Spinner, Modal } from './ui'
+import { SEMAFORO_CFG, type Semaforo } from '../lib/pqrsf'
 
-type Fila = { id: number; nombre: string; activo: boolean; orden?: number; correo?: string | null; grupo?: string | null }
+type Fila = { id: number; nombre: string; activo: boolean; orden?: number; correo?: string | null; grupo?: string | null; color?: Semaforo }
 
-export default function CatalogoEditor({ tabla, label, campoExtra, tieneOrden = true }: {
+const COLORES_SEMAFORO = Object.keys(SEMAFORO_CFG) as Semaforo[]
+
+export default function CatalogoEditor({ tabla, label, campoExtra, tieneOrden = true, tieneColor = false }: {
   tabla: string; label: string
   campoExtra?: { key: 'correo' | 'grupo'; label: string }
   tieneOrden?: boolean
+  tieneColor?: boolean
 }) {
   const [filas, setFilas] = useState<Fila[] | null>(null)
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [nuevoExtra, setNuevoExtra] = useState('')
+  const [nuevoColor, setNuevoColor] = useState<Semaforo>('amarillo')
   const [guardando, setGuardando] = useState(false)
   const [editando, setEditando] = useState<Fila | null>(null)
   const [eliminando, setEliminando] = useState<Fila | null>(null)
 
   async function cargar() {
-    const cols = ['id', 'nombre', 'activo', tieneOrden ? 'orden' : null, campoExtra?.key].filter(Boolean).join(',')
+    const cols = ['id', 'nombre', 'activo', tieneOrden ? 'orden' : null, campoExtra?.key, tieneColor ? 'color' : null].filter(Boolean).join(',')
     const { data } = await supabase.from(tabla).select(cols).order('nombre')
     setFilas((data ?? []) as unknown as Fila[])
   }
@@ -29,9 +34,10 @@ export default function CatalogoEditor({ tabla, label, campoExtra, tieneOrden = 
     try {
       const payload: Record<string, unknown> = { nombre: nuevoNombre.trim(), activo: true }
       if (campoExtra) payload[campoExtra.key] = nuevoExtra.trim() || null
+      if (tieneColor) payload.color = nuevoColor
       if (tieneOrden) payload.orden = (filas?.length ?? 0) + 1
       await supabase.from(tabla).insert(payload)
-      setNuevoNombre(''); setNuevoExtra('')
+      setNuevoNombre(''); setNuevoExtra(''); setNuevoColor('amarillo')
       await cargar()
     } finally {
       setGuardando(false)
@@ -49,6 +55,7 @@ export default function CatalogoEditor({ tabla, label, campoExtra, tieneOrden = 
     try {
       const payload: Record<string, unknown> = { nombre: editando.nombre.trim() }
       if (campoExtra) payload[campoExtra.key] = editando[campoExtra.key] || null
+      if (tieneColor) payload.color = editando.color
       await supabase.from(tabla).update(payload).eq('id', editando.id)
       setFilas((prev) => prev!.map((f) => (f.id === editando.id ? { ...f, ...payload } as Fila : f)))
       setEditando(null)
@@ -84,6 +91,9 @@ export default function CatalogoEditor({ tabla, label, campoExtra, tieneOrden = 
           <div className="neu-inset max-h-80 overflow-auto rounded-lg">
             {filas.map((f) => (
               <div key={f.id} className="flex items-center gap-2 border-b border-black/5 px-3 py-2 text-sm last:border-0">
+                {tieneColor && f.color && (
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: SEMAFORO_CFG[f.color].dot }} title={SEMAFORO_CFG[f.color].label} />
+                )}
                 <span className={`flex-1 ${!f.activo ? 'text-slate-400 line-through' : ''}`}>{f.nombre}</span>
                 {campoExtra && f[campoExtra.key] && <span className="text-xs text-slate-400">{f[campoExtra.key]}</span>}
                 <button onClick={() => alternarActivo(f)}
@@ -99,6 +109,12 @@ export default function CatalogoEditor({ tabla, label, campoExtra, tieneOrden = 
           <div className="mt-3 flex flex-wrap gap-2">
             <Input placeholder={`Nuevo ${label.toLowerCase()}…`} value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} className="flex-1" />
             {campoExtra && <Input placeholder={campoExtra.label} value={nuevoExtra} onChange={(e) => setNuevoExtra(e.target.value)} className="w-48" />}
+            {tieneColor && (
+              <select value={nuevoColor} onChange={(e) => setNuevoColor(e.target.value as Semaforo)}
+                className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm">
+                {COLORES_SEMAFORO.map((c) => <option key={c} value={c}>{SEMAFORO_CFG[c].label}</option>)}
+              </select>
+            )}
             <Boton variante="secundario" onClick={agregar} disabled={guardando || !nuevoNombre.trim()}>+ Agregar</Boton>
           </div>
         </>
@@ -110,6 +126,12 @@ export default function CatalogoEditor({ tabla, label, campoExtra, tieneOrden = 
             <Input value={editando.nombre} onChange={(e) => setEditando({ ...editando, nombre: e.target.value })} placeholder="Nombre" />
             {campoExtra && (
               <Input value={editando[campoExtra.key] ?? ''} onChange={(e) => setEditando({ ...editando, [campoExtra.key]: e.target.value })} placeholder={campoExtra.label} />
+            )}
+            {tieneColor && (
+              <select value={editando.color} onChange={(e) => setEditando({ ...editando, color: e.target.value as Semaforo })}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                {COLORES_SEMAFORO.map((c) => <option key={c} value={c}>{SEMAFORO_CFG[c].label}</option>)}
+              </select>
             )}
             <div className="flex justify-end gap-2 pt-2">
               <Boton variante="secundario" onClick={() => setEditando(null)} disabled={guardando}>Cancelar</Boton>

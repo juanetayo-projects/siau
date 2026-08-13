@@ -74,6 +74,13 @@
 .pqf-plazo-option.sel .pqf-plazo-radio::after { content: ''; position: absolute; top: 50%; left: 50%; width: 9px; height: 9px; border-radius: 50%; background: var(--blue-700); transform: translate(-50%, -50%); }
 .pqf-plazo-text { font-size: .87rem; font-weight: 600; color: var(--gray-900); white-space: nowrap; }
 
+/* Tipo de usuario Asegurador / Ente de Control: plazo resaltado en rojo */
+.pqf-plazo-option.alerta { border: 1.5px solid #fecaca; }
+.pqf-plazo-option.alerta .pqf-plazo-radio { border-color: #dc2626; }
+.pqf-plazo-option.alerta.sel { background: #fef2f2; }
+.pqf-plazo-option.alerta.sel .pqf-plazo-radio { border-color: #dc2626; }
+.pqf-plazo-option.alerta.sel .pqf-plazo-radio::after { background: #dc2626; }
+
 .pqf-user-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
 .pqf-user-card { cursor: pointer; flex: 1; min-width: 110px; border: none; border-radius: var(--radius); padding: 18px 10px; text-align: center; transition: all .2s; background: var(--white); box-shadow: 5px 5px 12px var(--pqf-neu-dark), -5px -5px 12px var(--pqf-neu-light); }
 .pqf-user-card:hover { background: var(--blue-50); }

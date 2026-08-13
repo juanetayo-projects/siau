@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { supabase } from './supabase'
 import type { Session } from '@supabase/supabase-js'
 
-export type Rol = 'admin' | 'analista'
+export type Rol = 'admin' | 'analista' | 'gestor'
 export type Modulo = 'respuesta' | 'satisfaccion'
 
 export type Perfil = {
@@ -28,6 +28,8 @@ export type Seccion =
 export function tieneAcceso(perfil: Perfil | null, seccion: Seccion): boolean {
   if (!perfil || !perfil.activo) return false
   if (perfil.rol === 'admin') return true
+  // Gestor: acceso a todos los módulos excepto Administrador (Usuarios, Resumen, Colores mapa de calor).
+  if (perfil.rol === 'gestor') return seccion !== 'administrador'
   switch (seccion) {
     case 'reporte':
     case 'consola_pqrsf':
