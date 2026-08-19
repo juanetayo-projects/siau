@@ -6,6 +6,8 @@ const ENCUESTA_URL = `${window.location.origin}${window.location.pathname}#/encu
 const LOGO_BLANCO = `${import.meta.env.BASE_URL}images/logo_cacsb_blanc.png`
 const QR_SIZE = 220
 const LOGO_ANCHO_QR = 130 // ancho de la insignia dentro del QR (alto se deriva de la proporción real del logo)
+const EXPORT_SIZE = 1800 // resolución del PNG descargado, para impresión tipográfica (no el tamaño mostrado en pantalla)
+const LOGO_ANCHO_EXPORT = Math.round((LOGO_ANCHO_QR / QR_SIZE) * EXPORT_SIZE)
 
 // Compone una vez (fuera de qrcode.react) una insignia azul con el logo blanco,
 // para pasarla como imageSettings.src — dibujar directamente sobre el canvas del
@@ -56,6 +58,7 @@ export default function CompartirEncuesta() {
   const [abierto, setAbierto] = useState(false)
   const [copiado, setCopiado] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const exportCanvasRef = useRef<HTMLCanvasElement>(null)
   const insignia = useInsigniaBlanca()
 
   function copiar() {
@@ -65,7 +68,7 @@ export default function CompartirEncuesta() {
   }
 
   function descargarPNG() {
-    const canvas = canvasRef.current
+    const canvas = exportCanvasRef.current
     if (!canvas) return
     const link = document.createElement('a')
     link.download = 'QR-Encuesta-Satisfaccion-CACsantabarbara.png'
@@ -93,6 +96,20 @@ export default function CompartirEncuesta() {
               } : undefined}
             />
           </div>
+          <QRCodeCanvas
+            ref={exportCanvasRef}
+            value={ENCUESTA_URL}
+            size={EXPORT_SIZE}
+            fgColor="#0D2D6B"
+            level="H"
+            style={{ display: 'none' }}
+            imageSettings={insignia ? {
+              src: insignia.url,
+              width: LOGO_ANCHO_EXPORT,
+              height: LOGO_ANCHO_EXPORT / insignia.aspecto,
+              excavate: true,
+            } : undefined}
+          />
           <Boton onClick={descargarPNG} className="w-full justify-center">⬇ Descargar QR (PNG)</Boton>
           <div className="neu-inset w-full rounded-xl p-3 text-center font-mono text-xs break-all text-slate-600">
             {ENCUESTA_URL}
