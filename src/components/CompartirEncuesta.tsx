@@ -5,9 +5,15 @@ import { Boton, Modal } from './ui'
 const ENCUESTA_URL = `${window.location.origin}${window.location.pathname}#/encuesta`
 const LOGO_BLANCO = `${import.meta.env.BASE_URL}images/logo_cacsb_blanc.png`
 const QR_SIZE = 220
-const LOGO_ANCHO_QR = 130 // ancho de la insignia dentro del QR (alto se deriva de la proporción real del logo)
+const LOGO_ANCHO_QR = 100 // ancho de la insignia dentro del QR (alto se deriva de la proporción real del logo; con marginSize y nivel de corrección H, ~130 ya no decodifica — 100 es el máximo verificado con jsQR)
 const EXPORT_SIZE = 1800 // resolución del PNG descargado, para impresión tipográfica (no el tamaño mostrado en pantalla)
 const LOGO_ANCHO_EXPORT = Math.round((LOGO_ANCHO_QR / QR_SIZE) * EXPORT_SIZE)
+// La zona de silencio (margen en blanco alrededor del código) es obligatoria en el
+// estándar QR para que un lector real la detecte de forma confiable — sin ella
+// (marginSize por defecto de qrcode.react es 0) el patrón queda pegado al borde de
+// la imagen y ningún lector de celular logra ubicarlo, sin importar el logo.
+// Causa raíz real de que el QR no escaneara. 4 módulos es el mínimo del estándar.
+const QR_MARGIN = 4
 
 // Compone una vez (fuera de qrcode.react) una insignia azul con el logo blanco,
 // para pasarla como imageSettings.src — dibujar directamente sobre el canvas del
@@ -88,6 +94,7 @@ export default function CompartirEncuesta() {
               size={QR_SIZE}
               fgColor="#0D2D6B"
               level="H"
+              marginSize={QR_MARGIN}
               imageSettings={insignia ? {
                 src: insignia.url,
                 width: LOGO_ANCHO_QR,
@@ -102,6 +109,7 @@ export default function CompartirEncuesta() {
             size={EXPORT_SIZE}
             fgColor="#0D2D6B"
             level="H"
+            marginSize={QR_MARGIN}
             style={{ display: 'none' }}
             imageSettings={insignia ? {
               src: insignia.url,
