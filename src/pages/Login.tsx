@@ -31,7 +31,7 @@ export default function Login() {
         nav('/', { replace: true })
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}#/restablecer`,
+          redirectTo: `${window.location.origin}${window.location.pathname}#/restablecer`,
         })
         if (error) throw error
         setMsg('Le enviamos un correo con el enlace para restablecer su contraseña.')

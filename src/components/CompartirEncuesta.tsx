@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { QRCodeCanvas } from 'qrcode.react'
 import { Boton, Modal } from './ui'
 
-const ENCUESTA_URL = `${window.location.origin}${import.meta.env.BASE_URL}#/encuesta`
+const ENCUESTA_URL = `${window.location.origin}${window.location.pathname}#/encuesta`
 const LOGO_BLANCO = `${import.meta.env.BASE_URL}images/logo_cacsb_blanc.png`
 const QR_SIZE = 220
 const LOGO_ANCHO_QR = 130 // ancho de la insignia dentro del QR (alto se deriva de la proporción real del logo)

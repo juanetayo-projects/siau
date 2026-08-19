@@ -6,7 +6,7 @@ import { SEDES, SERVICIOS, RATING_COLORS, EXPERIENCIA_COLORS } from '../../lib/s
 import { PageHeader, FilterBar, Campo, Input, Select, Boton, Tabla, THead, TH, TR, TD, Modal, Spinner, IconoOjo, IconoPapelera } from '../../components/ui'
 import CompartirEncuesta from '../../components/CompartirEncuesta'
 
-const ENCUESTA_URL = `${window.location.origin}${import.meta.env.BASE_URL}#/encuesta`
+const ENCUESTA_URL = `${window.location.origin}${window.location.pathname}#/encuesta`
 
 function RatingBadge({ value }: { value: number | null }) {
   if (!value) return <span className="text-slate-300">—</span>
