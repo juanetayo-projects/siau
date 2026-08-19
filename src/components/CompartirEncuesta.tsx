@@ -5,7 +5,7 @@ import { Boton, Modal } from './ui'
 const ENCUESTA_URL = `${window.location.origin}${window.location.pathname}#/encuesta`
 const LOGO_BLANCO = `${import.meta.env.BASE_URL}images/logo_cacsb_blanc.png`
 const QR_SIZE = 220
-const LOGO_ANCHO_QR = 100 // ancho de la insignia dentro del QR (alto se deriva de la proporción real del logo; con marginSize y nivel de corrección H, ~130 ya no decodifica — 100 es el máximo verificado con jsQR)
+const LOGO_ANCHO_QR = 80 // ancho de la insignia dentro del QR (alto se deriva de la proporción real del logo; validado con jsQR contra la URL real de producción — a partir de ~100px deja de decodificar con nivel de corrección H, así que se deja margen real por debajo de ese límite)
 const EXPORT_SIZE = 1800 // resolución del PNG descargado, para impresión tipográfica (no el tamaño mostrado en pantalla)
 const LOGO_ANCHO_EXPORT = Math.round((LOGO_ANCHO_QR / QR_SIZE) * EXPORT_SIZE)
 // La zona de silencio (margen en blanco alrededor del código) es obligatoria en el
