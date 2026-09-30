@@ -475,9 +475,9 @@ export default function RegistrarPqrsf() {
             </div>
             <div className="pqf-grid">
               <div className="pqf-field full"><label>Describa su PQRSF <span className="req">*</span></label>
-                <textarea rows={4} value={form.descripcion} onChange={(e) => campo('descripcion', e.target.value.slice(0, 1000))}
+                <textarea rows={4} value={form.descripcion} onChange={(e) => campo('descripcion', e.target.value.slice(0, 3000))}
                   placeholder="Describa con detalle su petición, queja, reclamo, sugerencia o felicitación…" />
-                <div className="pqf-char-count">{form.descripcion.length}/1000</div>
+                <div className="pqf-char-count">{form.descripcion.length}/3000</div>
               </div>
               <div className="pqf-field full"><label>Falla o atributo identificado <span className="req">*</span></label>
                 <FallaSelect fallas={listas.fallas} valor={form.falla} onChange={(v) => campo('falla', v)} />
