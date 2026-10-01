@@ -179,11 +179,17 @@ function NuevoUsuarioModal({ listaProcesos, onClose, onCreado }: { listaProcesos
     setGuardando(true); setError('')
     try {
       const { data, error: fnError } = await supabase.functions.invoke<{ ok: boolean; id: string; error?: string }>('create-user', {
-        body: { email, password, nombre, rol, proceso: procesos.join(', ') },
+        body: { email: email.trim(), password, nombre: nombre.trim(), rol, procesos, modulos },
       })
-      if (fnError || !data?.ok) throw new Error(data?.error || fnError?.message || 'No se pudo crear el usuario')
-      const { error: upError } = await supabase.from('consola_perfiles').update({ modulos, procesos }).eq('id', data.id)
-      if (upError) throw upError
+      if (fnError || !data?.ok) {
+        // Ante un estado no-2xx, el mensaje útil viene en el cuerpo de la respuesta de la función
+        let detalle = data?.error
+        const ctx = (fnError as any)?.context
+        if (!detalle && ctx && typeof ctx.json === 'function') {
+          try { detalle = (await ctx.json())?.error } catch { /* cuerpo no JSON */ }
+        }
+        throw new Error(detalle || fnError?.message || 'No se pudo crear el usuario')
+      }
       onCreado()
       onClose()
     } catch (e: any) {
