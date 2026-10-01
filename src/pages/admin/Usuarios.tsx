@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { PageHeader, FilterBar, Campo, Input, Select, Boton, Tabla, THead, TH, TR, TD, Modal, Spinner } from '../../components/ui'
 import type { Modulo, Rol } from '../../lib/auth'
 
-type Perfil = { id: string; nombre: string; email: string; rol: Rol; proceso: string | null; modulos: Modulo[]; activo: boolean; created_at: string }
+type Perfil = { id: string; nombre: string; email: string; rol: Rol; proceso: string | null; procesos: string[]; modulos: Modulo[]; activo: boolean; created_at: string }
 
 const MODULOS_DISPONIBLES: { valor: Modulo; label: string }[] = [
   { valor: 'respuesta', label: 'Respuesta PQRSF' },
@@ -17,12 +17,19 @@ export default function Usuarios() {
   const [creando, setCreando] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
+  const [listaProcesos, setListaProcesos] = useState<string[]>([])
 
   async function cargar() {
     const { data } = await supabase.from('consola_perfiles').select('*').order('nombre')
-    setUsuarios((data ?? []).map((u: any) => ({ ...u, modulos: u.modulos ?? [] })) as Perfil[])
+    setUsuarios((data ?? []).map((u: any) => ({
+      ...u, modulos: u.modulos ?? [], procesos: u.procesos?.length ? u.procesos : (u.proceso ? [u.proceso] : []),
+    })) as Perfil[])
   }
-  useEffect(() => { void cargar() }, [])
+  useEffect(() => {
+    void cargar()
+    void supabase.from('lista_procesos').select('nombre').eq('activo', true).order('nombre')
+      .then(({ data }) => setListaProcesos((data ?? []).map((p: any) => p.nombre)))
+  }, [])
 
   const filtrados = useMemo(() => {
     if (!usuarios) return []
@@ -34,9 +41,10 @@ export default function Usuarios() {
   async function guardarEdicion(u: Perfil) {
     setGuardando(true); setError('')
     try {
-      await supabase.from('consola_perfiles').update({
-        nombre: u.nombre, rol: u.rol, proceso: u.proceso || null, modulos: u.modulos, activo: u.activo,
+      const { error: upError } = await supabase.from('consola_perfiles').update({
+        nombre: u.nombre, rol: u.rol, procesos: u.procesos, proceso: u.procesos.join(', ') || null, modulos: u.modulos, activo: u.activo,
       }).eq('id', u.id)
+      if (upError) throw upError
       await cargar()
       setEditando(null)
     } catch (e: any) {
@@ -67,7 +75,7 @@ export default function Usuarios() {
               <TD className="font-medium">{u.nombre}</TD>
               <TD className="text-xs break-all">{u.email}</TD>
               <TD><span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${u.rol === 'admin' ? 'bg-[#0D2D6B] text-white' : 'bg-slate-100 text-slate-700'}`}>{u.rol}</span></TD>
-              <TD className="text-xs">{u.proceso || '—'}</TD>
+              <TD className="text-xs">{u.procesos.length ? u.procesos.map((p) => <div key={p}>{p}</div>) : '—'}</TD>
               <TD className="text-xs">{u.modulos.length ? u.modulos.join(', ') : '—'}</TD>
               <TD className="whitespace-nowrap">{u.activo ? <span className="text-xs font-semibold text-emerald-600">Activo</span> : <span className="text-xs font-semibold text-rose-500">Inactivo</span>}</TD>
               <TD className="whitespace-nowrap"><button onClick={() => setEditando(u)} className="rounded-lg px-2 py-1 text-xs font-medium text-[#16468E] hover:bg-[#EAF0FA]">Editar</button></TD>
@@ -88,7 +96,9 @@ export default function Usuarios() {
                 <option value="admin">Administrador</option>
               </Select>
             </Campo>
-            <Campo label="Proceso asignado (opcional)"><Input value={editando.proceso ?? ''} onChange={(e) => setEditando({ ...editando, proceso: e.target.value })} /></Campo>
+            <Campo label="Procesos asignados (opcional)">
+              <ProcesosSelector opciones={listaProcesos} seleccion={editando.procesos} onChange={(procesos) => setEditando({ ...editando, procesos })} />
+            </Campo>
             <Campo label="Módulos adicionales">
               <div className="flex flex-col gap-1.5">
                 {MODULOS_DISPONIBLES.map((m) => (
@@ -116,17 +126,51 @@ export default function Usuarios() {
         )}
       </Modal>
 
-      {creando && <NuevoUsuarioModal onClose={() => setCreando(false)} onCreado={cargar} />}
+      {creando && <NuevoUsuarioModal listaProcesos={listaProcesos} onClose={() => setCreando(false)} onCreado={cargar} />}
     </div>
   )
 }
 
-function NuevoUsuarioModal({ onClose, onCreado }: { onClose: () => void; onCreado: () => void }) {
+function ProcesosSelector({ opciones, seleccion, onChange }: { opciones: string[]; seleccion: string[]; onChange: (v: string[]) => void }) {
+  const [filtro, setFiltro] = useState('')
+  // Incluye procesos ya asignados que ya no estén activos en la lista maestra
+  const todas = useMemo(() => [...new Set([...seleccion, ...opciones])].sort((a, b) => a.localeCompare(b)), [opciones, seleccion])
+  const visibles = todas.filter((p) => p.toLowerCase().includes(filtro.trim().toLowerCase()))
+  const alternar = (p: string, on: boolean) => onChange(on ? [...seleccion, p] : seleccion.filter((x) => x !== p))
+
+  return (
+    <div className="space-y-2">
+      {seleccion.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {seleccion.map((p) => (
+            <span key={p} className="inline-flex items-center gap-1 rounded-full bg-[#EAF0FA] px-2 py-0.5 text-xs font-medium text-[#0D2D6B]">
+              {p}
+              <button type="button" onClick={() => alternar(p, false)} className="text-[#16468E] hover:text-rose-600" aria-label={`Quitar ${p}`}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+      <Input placeholder="Buscar proceso…" value={filtro} onChange={(e) => setFiltro(e.target.value)} />
+      <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
+        {visibles.length === 0 && <div className="px-1 text-xs text-slate-400">Sin coincidencias.</div>}
+        {visibles.map((p) => (
+          <label key={p} className="flex items-center gap-2 rounded px-1 py-1 text-sm hover:bg-[#F6F8FC]">
+            <input type="checkbox" checked={seleccion.includes(p)} onChange={(e) => alternar(p, e.target.checked)} />
+            {p}
+          </label>
+        ))}
+      </div>
+      <div className="text-xs text-slate-500">{seleccion.length} seleccionado(s)</div>
+    </div>
+  )
+}
+
+function NuevoUsuarioModal({ listaProcesos, onClose, onCreado }: { listaProcesos: string[]; onClose: () => void; onCreado: () => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [nombre, setNombre] = useState('')
   const [rol, setRol] = useState<Rol>('analista')
-  const [proceso, setProceso] = useState('')
+  const [procesos, setProcesos] = useState<string[]>([])
   const [modulos, setModulos] = useState<Modulo[]>([])
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
@@ -135,12 +179,11 @@ function NuevoUsuarioModal({ onClose, onCreado }: { onClose: () => void; onCread
     setGuardando(true); setError('')
     try {
       const { data, error: fnError } = await supabase.functions.invoke<{ ok: boolean; id: string; error?: string }>('create-user', {
-        body: { email, password, nombre, rol, proceso },
+        body: { email, password, nombre, rol, proceso: procesos.join(', ') },
       })
       if (fnError || !data?.ok) throw new Error(data?.error || fnError?.message || 'No se pudo crear el usuario')
-      if (modulos.length) {
-        await supabase.from('consola_perfiles').update({ modulos }).eq('id', data.id)
-      }
+      const { error: upError } = await supabase.from('consola_perfiles').update({ modulos, procesos }).eq('id', data.id)
+      if (upError) throw upError
       onCreado()
       onClose()
     } catch (e: any) {
@@ -163,7 +206,9 @@ function NuevoUsuarioModal({ onClose, onCreado }: { onClose: () => void; onCread
             <option value="admin">Administrador</option>
           </Select>
         </Campo>
-        <Campo label="Proceso asignado (opcional)"><Input value={proceso} onChange={(e) => setProceso(e.target.value)} /></Campo>
+        <Campo label="Procesos asignados (opcional)">
+          <ProcesosSelector opciones={listaProcesos} seleccion={procesos} onChange={setProcesos} />
+        </Campo>
         <Campo label="Módulos adicionales">
           <div className="flex flex-col gap-1.5">
             {MODULOS_DISPONIBLES.map((m) => (

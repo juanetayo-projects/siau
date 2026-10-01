@@ -12,6 +12,7 @@ export type Perfil = {
   rol: Rol
   modulos: Modulo[]
   proceso: string | null
+  procesos: string[]
   activo: boolean
 }
 
@@ -64,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function cargarPerfil(uid: string) {
     const { data } = await supabase.from('consola_perfiles').select('*').eq('id', uid).single()
-    if (data) setPerfil({ ...data, modulos: data.modulos ?? [] } as Perfil)
+    if (data) setPerfil({ ...data, modulos: data.modulos ?? [], procesos: data.procesos?.length ? data.procesos : (data.proceso ? [data.proceso] : []) } as Perfil)
   }
 
   useEffect(() => {

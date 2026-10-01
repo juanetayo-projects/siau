@@ -63,10 +63,12 @@ export default function ResponderPqrsf() {
     setBuscando(false)
     if (error || !data) { setNoEncontrado('No se encontró ningún PQRSF con ese número de radicado.'); return }
 
-    if (perfil && perfil.rol !== 'admin' && perfil.proceso) {
-      const userProceso = perfil.proceso.trim().toLowerCase()
-      const procesosReporte = (data.proceso ?? '').split(',').map((p: string) => p.trim().toLowerCase())
-      if (!procesosReporte.includes(userProceso)) {
+    if (perfil && perfil.rol !== 'admin' && perfil.procesos.length) {
+      // El reporte guarda sus procesos unidos por ", "; se compara por nombre completo
+      // porque algunos nombres de proceso contienen comas.
+      const norm = (t: string) => t.trim().toLowerCase()
+      const reporteProcesos = `, ${norm(data.proceso ?? '')}, `
+      if (!perfil.procesos.some((p) => reporteProcesos.includes(`, ${norm(p)}, `))) {
         setOtroProceso(data as Reporte)
         return
       }
@@ -236,8 +238,8 @@ export default function ResponderPqrsf() {
                 <div className="space-y-3 text-sm">
                   <p className="pqf-not-found" style={{ margin: 0 }}>
                     <span className="ic">⛔</span>
-                    Este radicado pertenece al proceso <b>{otroProceso.proceso || 'sin proceso asignado'}</b>, diferente al suyo
-                    (<b>{perfil?.proceso}</b>). Solo puede consultar sus datos básicos; no tiene permiso para gestionarlo.
+                    Este radicado pertenece al proceso <b>{otroProceso.proceso || 'sin proceso asignado'}</b>, que no corresponde a
+                    sus procesos (<b>{perfil?.procesos.join(', ')}</b>). Solo puede consultar sus datos básicos; no tiene permiso para gestionarlo.
                     Si cree que es un error, contacte al administrador.
                   </p>
                   <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
