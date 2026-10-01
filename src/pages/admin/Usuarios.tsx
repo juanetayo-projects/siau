@@ -49,7 +49,7 @@ export default function Usuarios() {
   if (!usuarios) return <Spinner texto="Cargando usuarios…" />
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-6xl">
       <PageHeader titulo="Usuarios" subtitulo={`${usuarios.length} usuarios en consola`}
         acciones={<Boton onClick={() => setCreando(true)}>+ Nuevo usuario</Boton>} />
 
@@ -65,12 +65,12 @@ export default function Usuarios() {
           {filtrados.map((u, i) => (
             <TR key={u.id} i={i}>
               <TD className="font-medium">{u.nombre}</TD>
-              <TD className="text-xs">{u.email}</TD>
-              <TD><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${u.rol === 'admin' ? 'bg-[#0D2D6B] text-white' : 'bg-slate-100 text-slate-700'}`}>{u.rol}</span></TD>
+              <TD className="text-xs break-all">{u.email}</TD>
+              <TD><span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${u.rol === 'admin' ? 'bg-[#0D2D6B] text-white' : 'bg-slate-100 text-slate-700'}`}>{u.rol}</span></TD>
               <TD className="text-xs">{u.proceso || '—'}</TD>
               <TD className="text-xs">{u.modulos.length ? u.modulos.join(', ') : '—'}</TD>
-              <TD>{u.activo ? <span className="text-xs font-semibold text-emerald-600">Activo</span> : <span className="text-xs font-semibold text-rose-500">Inactivo</span>}</TD>
-              <TD><button onClick={() => setEditando(u)} className="rounded-lg px-2 py-1 text-xs font-medium text-[#16468E] hover:bg-[#EAF0FA]">Editar</button></TD>
+              <TD className="whitespace-nowrap">{u.activo ? <span className="text-xs font-semibold text-emerald-600">Activo</span> : <span className="text-xs font-semibold text-rose-500">Inactivo</span>}</TD>
+              <TD className="whitespace-nowrap"><button onClick={() => setEditando(u)} className="rounded-lg px-2 py-1 text-xs font-medium text-[#16468E] hover:bg-[#EAF0FA]">Editar</button></TD>
             </TR>
           ))}
           {filtrados.length === 0 && <TR><TD className="text-slate-400">Sin usuarios.</TD></TR>}

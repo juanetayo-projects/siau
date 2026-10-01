@@ -8,6 +8,9 @@ const TIPO_CONFIG: Record<string, { color: string }> = {
   'Petición': { color: '#2471c8' }, Queja: { color: '#ea580c' }, Reclamo: { color: '#dc2626' },
   Sugerencia: { color: '#16a34a' }, 'Felicitación': { color: '#ca8a04' },
 }
+// Notificación por correo al usuario al registrar la respuesta (notify-respuesta). Poner en true para reactivarla.
+const NOTIFICAR_USUARIO = false
+
 const ETAPAS = ['Recibida', 'En gestión', 'Respondida', 'Cerrada']
 const PASOS = [
   { icono: '🔍', label: 'Radicado' },
@@ -135,7 +138,9 @@ export default function ResponderPqrsf() {
       await supabase.from('reportes_pqrsf').update({ estado: 'Respondida' }).eq('id', reporte.id)
 
       let nota = ''
-      if (reporte.email_reporta) {
+      if (!NOTIFICAR_USUARIO) {
+        nota = 'Respuesta guardada. La notificación por correo al usuario está deshabilitada.'
+      } else if (reporte.email_reporta) {
         setEnviando('Enviando notificación…')
         try {
           const { error: fnErr } = await supabase.functions.invoke('notify-respuesta', {
@@ -377,7 +382,7 @@ export default function ResponderPqrsf() {
           <div className="pqf-nav">
             {step > 1 ? <button className="pqf-btn pqf-btn-secondary" onClick={anterior} disabled={!!enviando}>← Anterior</button> : <span />}
             {step < 4 && <button className="pqf-btn pqf-btn-primary" onClick={siguiente}>Siguiente →</button>}
-            {step === 4 && <button className="pqf-btn pqf-btn-primary" onClick={enviar} disabled={!!enviando}>{enviando || 'Registrar y notificar'}</button>}
+            {step === 4 && <button className="pqf-btn pqf-btn-primary" onClick={enviar} disabled={!!enviando}>{enviando || (NOTIFICAR_USUARIO ? 'Registrar y notificar' : 'Registrar respuesta')}</button>}
           </div>
         </div>
       </div>
