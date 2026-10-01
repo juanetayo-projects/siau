@@ -3,6 +3,7 @@ import { useNavigate, Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { Boton, Input } from '../components/ui'
+import { emailDeIngreso } from '../lib/usuarios'
 
 type Modo = 'ingresar' | 'recuperar'
 const LOGO = `${import.meta.env.BASE_URL}images/logo_cacsb2.png`
@@ -26,11 +27,14 @@ export default function Login() {
     setErr(''); setMsg(''); setCargando(true)
     try {
       if (modo === 'ingresar') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password: pass })
+        const { error } = await supabase.auth.signInWithPassword({ email: emailDeIngreso(email), password: pass })
         if (error) throw new Error('Credenciales inválidas o usuario no confirmado.')
         nav('/', { replace: true })
       } else {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        if (!email.includes('@')) {
+          throw new Error('Los usuarios que ingresan con nombre de usuario deben solicitar el restablecimiento de su contraseña al administrador de SIAU.')
+        }
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
           redirectTo: `${window.location.origin}${window.location.pathname}#/restablecer`,
         })
         if (error) throw error
@@ -57,7 +61,7 @@ export default function Login() {
             {modo === 'ingresar' ? 'Ingrese a su cuenta' : 'Recuperar contraseña'}
           </h2>
 
-          <Input type="email" placeholder="correo@cacsantabarbara.co" value={email}
+          <Input type={modo === 'ingresar' ? 'text' : 'email'} placeholder={modo === 'ingresar' ? 'Correo o usuario' : 'correo@cacsantabarbara.co'} value={email}
             onChange={(e) => setEmail(e.target.value)} required autoComplete="username" />
           {modo === 'ingresar' && (
             <div className="relative">

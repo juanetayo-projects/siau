@@ -13,6 +13,8 @@ export type Perfil = {
   modulos: Modulo[]
   proceso: string | null
   procesos: string[]
+  usuario: string | null
+  correo_contacto: string | null
   activo: boolean
 }
 
