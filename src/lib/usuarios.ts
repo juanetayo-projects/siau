@@ -2,6 +2,7 @@
 // nombre de usuario. En Supabase Auth se registran con un correo técnico en este dominio.
 export const DOMINIO_USUARIOS = 'usuarios.siau.cacsantabarbara.co'
 export const PATRON_USUARIO = /^[a-z0-9][a-z0-9._-]{2,39}$/
+export const PATRON_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function normalizarUsuario(v: string) {
   return v.trim().toLowerCase()

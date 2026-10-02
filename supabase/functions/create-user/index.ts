@@ -7,6 +7,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '
 // Debe coincidir con src/lib/usuarios.ts
 const DOMINIO_USUARIOS = 'usuarios.siau.cacsantabarbara.co';
 const PATRON_USUARIO   = /^[a-z0-9][a-z0-9._-]{2,39}$/;
+const PATRON_CORREO    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const CORS = {
   'Access-Control-Allow-Origin' : '*',
@@ -52,6 +53,30 @@ serve(async (req) => {
       const { error } = await adminClient.auth.admin.updateUserById(id, { password: String(password) });
       if (error) return json({ ok: false, error: `No se pudo restablecer: ${error.message}` }, 400);
       return json({ ok: true });
+    }
+
+    // ── Acción: actualizar el correo de ingreso de un usuario ──
+    if (body.action === 'update_email') {
+      const id = String(body.id ?? '');
+      const nuevo = String(body.email ?? '').trim().toLowerCase();
+      if (!id || !PATRON_CORREO.test(nuevo)) return json({ ok: false, error: 'Correo no válido.' }, 400);
+      if (nuevo.endsWith(`@${DOMINIO_USUARIOS}`)) return json({ ok: false, error: 'Ese dominio está reservado para usuarios con nombre de usuario.' }, 400);
+
+      const { data: actual } = await adminClient.from('consola_perfiles').select('usuario').eq('id', id).maybeSingle();
+      if (!actual) return json({ ok: false, error: 'Usuario no encontrado.' }, 404);
+      if (actual.usuario) return json({ ok: false, error: 'Este usuario ingresa con nombre de usuario; edite su correo de contacto.' }, 400);
+
+      const { error } = await adminClient.auth.admin.updateUserById(id, { email: nuevo, email_confirm: true });
+      if (error) {
+        const code = (error as { code?: string }).code;
+        if (code === 'email_exists' || /already (been )?registered/i.test(error.message)) {
+          return json({ ok: false, error: `El correo ${nuevo} ya está registrado por otro usuario.` }, 409);
+        }
+        return json({ ok: false, error: `No se pudo actualizar el correo: ${error.message}` }, 400);
+      }
+      const { error: upErr } = await adminClient.from('consola_perfiles').update({ email: nuevo }).eq('id', id);
+      if (upErr) throw upErr;
+      return json({ ok: true, email: nuevo });
     }
 
     // ── 2. Leer payload de creación ────────────────────────────

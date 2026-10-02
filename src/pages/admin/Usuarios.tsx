@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { PageHeader, FilterBar, Campo, Input, Select, Boton, Tabla, THead, TH, TR, TD, Modal, Spinner } from '../../components/ui'
 import type { Modulo, Rol } from '../../lib/auth'
-import { PATRON_USUARIO, normalizarUsuario } from '../../lib/usuarios'
+import { PATRON_CORREO, PATRON_USUARIO, normalizarUsuario } from '../../lib/usuarios'
 
 type Perfil = { id: string; nombre: string; email: string; usuario: string | null; correo_contacto: string | null; rol: Rol; proceso: string | null; procesos: string[]; modulos: Modulo[]; activo: boolean; created_at: string }
 
@@ -58,6 +58,12 @@ export default function Usuarios() {
   async function guardarEdicion(u: Perfil) {
     setGuardando(true); setError('')
     try {
+      const original = usuarios?.find((x) => x.id === u.id)
+      const nuevoEmail = u.email.trim().toLowerCase()
+      if (!u.usuario && original && nuevoEmail !== original.email.toLowerCase()) {
+        if (!PATRON_CORREO.test(nuevoEmail)) throw new Error('Correo no válido.')
+        await invocarAdminUsuarios({ action: 'update_email', id: u.id, email: nuevoEmail })
+      }
       const { error: upError } = await supabase.from('consola_perfiles').update({
         nombre: u.nombre, correo_contacto: u.correo_contacto?.trim() || null, rol: u.rol, procesos: u.procesos, proceso: u.procesos.join(', ') || null, modulos: u.modulos, activo: u.activo,
       }).eq('id', u.id)
@@ -126,58 +132,69 @@ export default function Usuarios() {
         </tbody>
       </Tabla>
 
-      <Modal open={!!editando} onClose={() => abrirEdicion(null)} titulo={editando ? `Editar · ${editando.nombre}` : ''}>
+      <Modal open={!!editando} onClose={() => abrirEdicion(null)} titulo={editando ? `Editar · ${editando.nombre}` : ''} ancho="max-w-4xl">
         {editando && (
           <div className="space-y-3">
-            <Campo label="Nombre"><Input value={editando.nombre} onChange={(e) => setEditando({ ...editando, nombre: e.target.value })} /></Campo>
-            {editando.usuario ? (
-              <>
-                <Campo label="Usuario de ingreso"><Input value={editando.usuario} disabled /></Campo>
-                <Campo label="Correo de contacto (compartido)">
-                  <Input type="email" value={editando.correo_contacto ?? ''} onChange={(e) => setEditando({ ...editando, correo_contacto: e.target.value })} placeholder="correo@cacsantabarbara.co" />
+            {/* Dos columnas para que el formulario quepa sin scroll vertical */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-3">
+                <Campo label="Nombre"><Input value={editando.nombre} onChange={(e) => setEditando({ ...editando, nombre: e.target.value })} /></Campo>
+                {editando.usuario ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Campo label="Usuario de ingreso"><Input value={editando.usuario} disabled /></Campo>
+                    <Campo label="Correo de contacto (compartido)">
+                      <Input type="email" value={editando.correo_contacto ?? ''} onChange={(e) => setEditando({ ...editando, correo_contacto: e.target.value })} placeholder="correo@cacsantabarbara.co" />
+                    </Campo>
+                  </div>
+                ) : (
+                  <Campo label="Correo de ingreso">
+                    <Input type="email" value={editando.email} onChange={(e) => setEditando({ ...editando, email: e.target.value })} placeholder="correo@cacsantabarbara.co" />
+                  </Campo>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <Campo label="Rol">
+                    <Select value={editando.rol} onChange={(e) => setEditando({ ...editando, rol: e.target.value as Rol })}>
+                      <option value="analista">Analista</option>
+                      <option value="gestor">Gestor</option>
+                      <option value="admin">Administrador</option>
+                    </Select>
+                  </Campo>
+                  <Campo label="Estado">
+                    <label className="flex h-full items-center gap-2 text-sm">
+                      <input type="checkbox" checked={editando.activo} onChange={(e) => setEditando({ ...editando, activo: e.target.checked })} />
+                      Usuario activo
+                    </label>
+                  </Campo>
+                </div>
+                <Campo label="Módulos adicionales">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                    {MODULOS_DISPONIBLES.map((m) => (
+                      <label key={m.valor} className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={editando.modulos.includes(m.valor)}
+                          onChange={(e) => setEditando({
+                            ...editando,
+                            modulos: e.target.checked ? [...editando.modulos, m.valor] : editando.modulos.filter((x) => x !== m.valor),
+                          })} />
+                        {m.label}
+                      </label>
+                    ))}
+                  </div>
                 </Campo>
-              </>
-            ) : (
-              <Campo label="Correo de ingreso"><Input value={editando.email} disabled /></Campo>
-            )}
-            <Campo label="Rol">
-              <Select value={editando.rol} onChange={(e) => setEditando({ ...editando, rol: e.target.value as Rol })}>
-                <option value="analista">Analista</option>
-                <option value="gestor">Gestor</option>
-                <option value="admin">Administrador</option>
-              </Select>
-            </Campo>
-            <Campo label="Procesos asignados (opcional)">
-              <ProcesosSelector opciones={listaProcesos} seleccion={editando.procesos} onChange={(procesos) => setEditando({ ...editando, procesos })} />
-            </Campo>
-            <Campo label="Módulos adicionales">
-              <div className="flex flex-col gap-1.5">
-                {MODULOS_DISPONIBLES.map((m) => (
-                  <label key={m.valor} className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={editando.modulos.includes(m.valor)}
-                      onChange={(e) => setEditando({
-                        ...editando,
-                        modulos: e.target.checked ? [...editando.modulos, m.valor] : editando.modulos.filter((x) => x !== m.valor),
-                      })} />
-                    {m.label}
-                  </label>
-                ))}
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <div className="mb-2 text-sm font-semibold text-slate-700">Restablecer contraseña</div>
+                  <div className="flex gap-2">
+                    <Input type="text" value={nuevaClave} onChange={(e) => { setNuevaClave(e.target.value); setMsgClave('') }} placeholder="Nueva contraseña (mín. 6)" className="flex-1" />
+                    <Boton variante="secundario" onClick={() => restablecerClave(editando)} disabled={guardando || nuevaClave.length < 6}>Restablecer</Boton>
+                  </div>
+                  {msgClave && <p className="mt-2 text-sm text-emerald-600">{msgClave}</p>}
+                </div>
               </div>
-            </Campo>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={editando.activo} onChange={(e) => setEditando({ ...editando, activo: e.target.checked })} />
-              Usuario activo
-            </label>
-            <div className="rounded-lg border border-slate-200 p-3">
-              <div className="mb-2 text-sm font-semibold text-slate-700">Restablecer contraseña</div>
-              <div className="flex gap-2">
-                <Input type="text" value={nuevaClave} onChange={(e) => { setNuevaClave(e.target.value); setMsgClave('') }} placeholder="Nueva contraseña (mín. 6)" className="flex-1" />
-                <Boton variante="secundario" onClick={() => restablecerClave(editando)} disabled={guardando || nuevaClave.length < 6}>Restablecer</Boton>
-              </div>
-              {msgClave && <p className="mt-2 text-sm text-emerald-600">{msgClave}</p>}
+              <Campo label="Procesos asignados (opcional)">
+                <ProcesosSelector opciones={listaProcesos} seleccion={editando.procesos} onChange={(procesos) => setEditando({ ...editando, procesos })} />
+              </Campo>
             </div>
             {error && <p className="text-sm text-rose-600">{error}</p>}
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2">
               <Boton variante="secundario" onClick={() => abrirEdicion(null)} disabled={guardando}>Cancelar</Boton>
               <Boton onClick={() => guardarEdicion(editando)} disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</Boton>
             </div>
@@ -200,7 +217,7 @@ function ProcesosSelector({ opciones, seleccion, onChange }: { opciones: string[
   return (
     <div className="space-y-2">
       {seleccion.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex max-h-20 flex-wrap gap-1.5 overflow-y-auto">
           {seleccion.map((p) => (
             <span key={p} className="inline-flex items-center gap-1 rounded-full bg-[#EAF0FA] px-2 py-0.5 text-xs font-medium text-[#0D2D6B]">
               {p}
