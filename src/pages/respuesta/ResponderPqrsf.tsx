@@ -11,6 +11,9 @@ const TIPO_CONFIG: Record<string, { color: string }> = {
 // Notificación por correo al usuario al registrar la respuesta (notify-respuesta). Poner en true para reactivarla.
 const NOTIFICAR_USUARIO = false
 
+// Máximo de caracteres de la respuesta oficial.
+const MAX_RESPUESTA = 5000
+
 const ETAPAS = ['Recibida', 'En gestión', 'Respondida', 'Cerrada']
 const PASOS = [
   { icono: '🔍', label: 'Radicado' },
@@ -343,9 +346,9 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
                 <input type="email" value={correoResponsable} onChange={(e) => setCorreoResponsable(e.target.value)} placeholder="correo@cacsantabarbara.co" />
               </div>
               <div className="pqf-field full"><label>Respuesta oficial <span className="req">*</span></label>
-                <textarea rows={5} value={respuestaTexto} onChange={(e) => setRespuestaTexto(e.target.value.slice(0, 2000))}
+                <textarea rows={8} value={respuestaTexto} onChange={(e) => setRespuestaTexto(e.target.value.slice(0, MAX_RESPUESTA))}
                   placeholder="Escriba la respuesta oficial que se comunicará al usuario…" />
-                <div className="pqf-char-count">{respuestaTexto.length}/2000</div>
+                <div className="pqf-char-count">{respuestaTexto.length.toLocaleString('es-CO')}/{MAX_RESPUESTA.toLocaleString('es-CO')}</div>
               </div>
               <div className="pqf-field full"><label>Colaborador involucrado en la manifestación</label>
                 <input value={colaborador} onChange={(e) => setColaborador(e.target.value)} placeholder="Nombre del colaborador (si aplica)" />
