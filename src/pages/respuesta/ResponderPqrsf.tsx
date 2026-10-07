@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import { Modal } from '../../components/ui'
@@ -31,7 +31,8 @@ function campoValor(v: string | null | undefined) {
   return v && v.trim() ? v : <span className="pqf-record-value empty">—</span>
 }
 
-export default function ResponderPqrsf() {
+/** `publico`: acceso sin login desde el enlace del correo (radicado + código único). */
+export default function ResponderPqrsf({ publico }: { publico?: { id: number; token: string } }) {
   const { perfil } = useAuth()
   const [step, setStep] = useState(1)
   const [radicadoInput, setRadicadoInput] = useState('')
@@ -52,6 +53,18 @@ export default function ResponderPqrsf() {
   const [errorEnvio, setErrorEnvio] = useState('')
   const [radicadoFinal, setRadicadoFinal] = useState('')
   const [notaCorreo, setNotaCorreo] = useState('')
+
+  // Modo público: carga el radicado del enlace validando el código (RPC security definer).
+  useEffect(() => {
+    if (!publico) return
+    setBuscando(true)
+    supabase.rpc('pqrsf_reporte_por_token', { p_id: publico.id, p_token: publico.token }).then(({ data, error }) => {
+      setBuscando(false)
+      const fila = Array.isArray(data) ? data[0] : data
+      if (error || !fila) setNoEncontrado('El enlace no es válido. Ábralo directamente desde el botón "Responder PQRSF" del correo de notificación.')
+      else setReporte(fila as Reporte)
+    })
+  }, [publico?.id, publico?.token])
 
   async function buscar() {
     const match = radicadoInput.trim().match(/(\d+)$/)
@@ -137,7 +150,8 @@ export default function ResponderPqrsf() {
       const { data: respData, error: respError } = await supabase.from('respuestas_pqrsf').insert([payload]).select().single()
       if (respError) throw respError
 
-      await supabase.from('reportes_pqrsf').update({ estado: 'Respondida' }).eq('id', reporte.id)
+      if (publico) await supabase.rpc('pqrsf_marcar_respondida', { p_id: publico.id, p_token: publico.token })
+      else await supabase.from('reportes_pqrsf').update({ estado: 'Respondida' }).eq('id', reporte.id)
 
       let nota = ''
       if (!NOTIFICAR_USUARIO) {
@@ -188,7 +202,7 @@ export default function ResponderPqrsf() {
               <span className="pqf-ticket-label">Radicado respondido</span>
               <span className="pqf-ticket-number">{radicadoFinal}</span>
             </div>
-            <div><button className="pqf-btn pqf-btn-success" onClick={reiniciar}>Responder otro radicado</button></div>
+            {!publico && <div><button className="pqf-btn pqf-btn-success" onClick={reiniciar}>Responder otro radicado</button></div>}
           </div>
         </div>
       </div>
@@ -197,8 +211,10 @@ export default function ResponderPqrsf() {
 
   return (
     <div className="pqf">
-      <h1 className="mb-1 text-lg font-bold text-[#0D2D6B]">Responder PQRSF</h1>
-      <p className="mb-4 text-sm text-slate-500">{perfil ? perfil.nombre : ''}</p>
+      {!publico && <>
+        <h1 className="mb-1 text-lg font-bold text-[#0D2D6B]">Responder PQRSF</h1>
+        <p className="mb-4 text-sm text-slate-500">{perfil ? perfil.nombre : ''}</p>
+      </>}
 
       <div className="pqf-container">
         <div className="pqf-steps-h">
@@ -218,13 +234,15 @@ export default function ResponderPqrsf() {
         {step === 1 && (
           <div className="pqf-step">
             <div className="pqf-step-header"><span className="pqf-step-num">1</span>
-              <div><h2>Buscar radicado PQRSF</h2><p>Ingrese el número de radicado a responder</p></div>
+              {publico
+                ? <div><h2>Radicado PQRSF</h2><p>{buscando ? 'Cargando radicado…' : 'Revise los datos de la solicitud y continúe para registrar la respuesta'}</p></div>
+                : <div><h2>Buscar radicado PQRSF</h2><p>Ingrese el número de radicado a responder</p></div>}
             </div>
-            <div className="pqf-search-wrap">
+            {!publico && <div className="pqf-search-wrap">
               <input value={radicadoInput} onChange={(e) => setRadicadoInput(e.target.value)}
                 placeholder="Ej: PQRSF-000001  o  1" onKeyDown={(e) => e.key === 'Enter' && buscar()} />
               <button className="pqf-btn-search" onClick={buscar} disabled={buscando}>{buscando ? 'Buscando…' : 'Buscar'}</button>
-            </div>
+            </div>}
             {errores[1] && <p className="pqf-error">⚠ {errores[1]}</p>}
 
             {noEncontrado && (
