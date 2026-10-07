@@ -148,11 +148,18 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
         respondido_por_nombre: respondidoPor, respondido_por_email: correoResponsable || null,
         archivo_url: archivoUrl, archivo_nombre: archivoNombre,
       }
-      const { data: respData, error: respError } = await supabase.from('respuestas_pqrsf').insert([payload]).select().single()
-      if (respError) throw respError
-
-      if (publico) await supabase.rpc('pqrsf_marcar_respondida', { p_id: publico.id, p_token: publico.token })
-      else await supabase.from('reportes_pqrsf').update({ estado: 'Respondida' }).eq('id', reporte.id)
+      let respId: number
+      if (publico) {
+        // Sin login: la BD valida el código, inserta la respuesta y marca el reporte como Respondida.
+        const { data, error } = await supabase.rpc('pqrsf_registrar_respuesta', { p_id: publico.id, p_token: publico.token, p_respuesta: payload })
+        if (error) throw error
+        respId = data as number
+      } else {
+        const { data: respData, error: respError } = await supabase.from('respuestas_pqrsf').insert([payload]).select().single()
+        if (respError) throw respError
+        respId = respData.id
+        await supabase.from('reportes_pqrsf').update({ estado: 'Respondida' }).eq('id', reporte.id)
+      }
 
       let nota = ''
       if (!NOTIFICAR_USUARIO) {
@@ -161,7 +168,7 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
         setEnviando('Enviando notificación…')
         try {
           const { error: fnErr } = await supabase.functions.invoke('notify-respuesta', {
-            body: { respuesta: { ...payload, id: respData.id }, reporte: { ...reporte } },
+            body: { respuesta: { ...payload, id: respId }, reporte: { ...reporte } },
           })
           nota = fnErr ? '⚠️ Respuesta guardada. El correo no pudo enviarse.' : `📧 Notificación enviada a ${reporte.email_reporta}`
         } catch {
