@@ -27,3 +27,12 @@ end $$;
 
 revoke all on function public.pqrsf_registrar_respuesta(bigint, uuid, jsonb) from public;
 grant execute on function public.pqrsf_registrar_respuesta(bigint, uuid, jsonb) to anon, authenticated;
+
+-- Las respuestas solo se leen/escriben con sesión; sin login se usa pqrsf_registrar_respuesta.
+drop policy if exists "allow_select" on public.respuestas_pqrsf;
+drop policy if exists "allow_anon_insert" on public.respuestas_pqrsf;
+create policy "auth_insert_respuestas" on public.respuestas_pqrsf
+  for insert to authenticated with check (true);
+
+-- Reemplazada por pqrsf_registrar_respuesta.
+drop function if exists public.pqrsf_marcar_respondida(bigint, uuid);
