@@ -57,6 +57,7 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
   // Modo público: carga el radicado del enlace validando el código (RPC security definer).
   useEffect(() => {
     if (!publico) return
+    setReporte(null); setNoEncontrado(null); setStep(1)
     setBuscando(true)
     supabase.rpc('pqrsf_reporte_por_token', { p_id: publico.id, p_token: publico.token }).then(({ data, error }) => {
       setBuscando(false)
