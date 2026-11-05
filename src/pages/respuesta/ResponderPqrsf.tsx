@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import { Modal } from '../../components/ui'
+import { formatoTamano, type Adjunto } from '../../lib/adjuntosRespuesta'
 import '../../styles/pqrsf-form.css'
 
 const TIPO_CONFIG: Record<string, { color: string }> = {
@@ -11,14 +12,20 @@ const TIPO_CONFIG: Record<string, { color: string }> = {
 // Notificación por correo al usuario al registrar la respuesta (notify-respuesta). Poner en true para reactivarla.
 const NOTIFICAR_USUARIO = false
 
-// Máximo de caracteres de la respuesta oficial.
+// Máximo de caracteres de la respuesta oficial. Lo que exceda este texto se soporta con adjuntos.
 const MAX_RESPUESTA = 5000
+
+// Adjuntos de la respuesta. El tamaño y los tipos deben coincidir con el bucket pqrsf-adjuntos.
+const MAX_ADJUNTOS = 5
+const MAX_TAMANO_ADJUNTO = 10 * 1024 * 1024
+const TIPOS_ADJUNTO = ['application/pdf', 'text/plain', 'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/png', 'image/jpeg']
 
 const ETAPAS = ['Recibida', 'En gestión', 'Respondida', 'Cerrada']
 const PASOS = [
   { icono: '🔍', label: 'Radicado' },
   { icono: '✏️', label: 'Respuesta' },
-  { icono: '📎', label: 'Adjunto' },
+  { icono: '📎', label: 'Adjuntos' },
   { icono: '✅', label: 'Resumen' },
 ]
 
@@ -49,7 +56,9 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
   const [correoResponsable, setCorreoResponsable] = useState('')
   const [respuestaTexto, setRespuestaTexto] = useState('')
   const [colaborador, setColaborador] = useState('')
-  const [archivo, setArchivo] = useState<File | null>(null)
+  const [archivos, setArchivos] = useState<File[]>([])
+  // Archivos ya subidos: si el guardado falla y se reintenta, no se vuelven a subir.
+  const subidos = useRef(new Map<File, Adjunto>())
 
   const [errores, setErrores] = useState<Record<number, string>>({})
   const [enviando, setEnviando] = useState('')
@@ -97,6 +106,9 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
     if (!fechaRespuesta) return 'La fecha de respuesta es obligatoria.'
     if (!respondidoPor.trim()) return 'Ingrese el nombre del responsable.'
     if (!respuestaTexto.trim()) return 'La respuesta oficial es obligatoria.'
+    if (respuestaTexto.length > MAX_RESPUESTA) {
+      return `La respuesta supera los ${MAX_RESPUESTA.toLocaleString('es-CO')} caracteres. Escriba un resumen y adjunte el documento completo en el siguiente paso.`
+    }
     return ''
   }
 
@@ -115,32 +127,43 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  function onArchivo(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]
-    if (!f) return
-    const permitidos = ['application/pdf', 'text/plain', 'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/png', 'image/jpeg']
-    if (!permitidos.includes(f.type)) { setErrores((e) => ({ ...e, 3: 'Tipo de archivo no permitido. Use PDF, DOC, DOCX, TXT, PNG o JPG.' })); return }
-    if (f.size > 10 * 1024 * 1024) { setErrores((e) => ({ ...e, 3: 'El archivo supera los 10 MB.' })); return }
-    setErrores((e) => ({ ...e, 3: '' }))
-    setArchivo(f)
+  function onArchivos(e: React.ChangeEvent<HTMLInputElement>) {
+    const nuevos = Array.from(e.target.files ?? [])
+    e.target.value = '' // permite volver a elegir un archivo que se haya quitado
+    if (!nuevos.length) return
+    const lista = [...archivos]
+    const problemas: string[] = []
+    for (const f of nuevos) {
+      if (lista.some((a) => a.name === f.name && a.size === f.size)) continue
+      if (!TIPOS_ADJUNTO.includes(f.type)) problemas.push(`${f.name}: tipo no permitido. Use PDF, DOC, DOCX, TXT, PNG o JPG.`)
+      else if (f.size > MAX_TAMANO_ADJUNTO) problemas.push(`${f.name}: supera los 10 MB.`)
+      else if (lista.length >= MAX_ADJUNTOS) problemas.push(`${f.name}: solo se permiten ${MAX_ADJUNTOS} archivos.`)
+      else lista.push(f)
+    }
+    setErrores((prev) => ({ ...prev, 3: problemas.join(' ') }))
+    setArchivos(lista)
+  }
+
+  async function subirArchivo(archivo: File): Promise<Adjunto> {
+    const previo = subidos.current.get(archivo)
+    if (previo) return previo
+    const ext = archivo.name.split('.').pop()
+    const name = `resp_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+    const { error } = await supabase.storage.from('pqrsf-adjuntos').upload(name, archivo, { contentType: archivo.type, upsert: false })
+    if (error) throw new Error(`No se pudo subir "${archivo.name}": ${error.message}. La respuesta no se registró; intente de nuevo.`)
+    const adjunto: Adjunto = { nombre: archivo.name, url: supabase.storage.from('pqrsf-adjuntos').getPublicUrl(name).data.publicUrl, tamano: archivo.size }
+    subidos.current.set(archivo, adjunto)
+    return adjunto
   }
 
   async function enviar() {
     if (!reporte) return
     setErrorEnvio('')
     try {
-      let archivoUrl: string | null = null
-      let archivoNombre: string | null = null
-      if (archivo) {
-        setEnviando('Subiendo documento…')
-        const ext = archivo.name.split('.').pop()
-        const name = `resp_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-        const { error } = await supabase.storage.from('pqrsf-adjuntos').upload(name, archivo, { contentType: archivo.type, upsert: false })
-        if (!error) {
-          archivoUrl = supabase.storage.from('pqrsf-adjuntos').getPublicUrl(name).data.publicUrl
-          archivoNombre = archivo.name
-        }
+      const adjuntos: Adjunto[] = []
+      for (const [i, archivo] of archivos.entries()) {
+        setEnviando(`Subiendo documento ${i + 1} de ${archivos.length}…`)
+        adjuntos.push(await subirArchivo(archivo))
       }
 
       const radicado = `PQRSF-${String(reporte.id).padStart(6, '0')}`
@@ -149,7 +172,7 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
         reporte_id: reporte.id, numero_radicado: radicado, fecha_respuesta: fechaRespuesta,
         respuesta: respuestaTexto, colaborador: colaborador || null,
         respondido_por_nombre: respondidoPor, respondido_por_email: correoResponsable || null,
-        archivo_url: archivoUrl, archivo_nombre: archivoNombre,
+        archivo_url: adjuntos[0]?.url ?? null, archivo_nombre: adjuntos[0]?.nombre ?? null, adjuntos,
       }
       let respId: number
       if (publico) {
@@ -181,6 +204,7 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
         nota = '⚠️ El usuario no tiene correo registrado. Respuesta guardada sin notificación.'
       }
 
+      subidos.current.clear()
       setRadicadoFinal(radicado)
       setNotaCorreo(nota)
       setStep(5)
@@ -194,7 +218,7 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
   function reiniciar() {
     setStep(1); setRadicadoInput(''); setReporte(null); setNoEncontrado(null); setOtroProceso(null)
     setFechaRespuesta(new Date().toISOString().slice(0, 10)); setRespondidoPor(perfil?.nombre ?? '')
-    setCorreoResponsable(''); setRespuestaTexto(''); setColaborador(''); setArchivo(null)
+    setCorreoResponsable(''); setRespuestaTexto(''); setColaborador(''); setArchivos([]); subidos.current.clear()
     setErrores({}); setErrorEnvio(''); setRadicadoFinal(''); setNotaCorreo('')
   }
 
@@ -346,9 +370,12 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
                 <input type="email" value={correoResponsable} onChange={(e) => setCorreoResponsable(e.target.value)} placeholder="correo@cacsantabarbara.co" />
               </div>
               <div className="pqf-field full"><label>Respuesta oficial <span className="req">*</span></label>
-                <textarea rows={8} value={respuestaTexto} onChange={(e) => setRespuestaTexto(e.target.value.slice(0, MAX_RESPUESTA))}
+                <textarea rows={8} value={respuestaTexto} onChange={(e) => setRespuestaTexto(e.target.value)}
                   placeholder="Escriba la respuesta oficial que se comunicará al usuario…" />
-                <div className="pqf-char-count">{respuestaTexto.length.toLocaleString('es-CO')}/{MAX_RESPUESTA.toLocaleString('es-CO')}</div>
+                <div className="pqf-char-count" style={respuestaTexto.length > MAX_RESPUESTA ? { color: 'var(--red)', fontWeight: 600 } : undefined}>
+                  {respuestaTexto.length.toLocaleString('es-CO')}/{MAX_RESPUESTA.toLocaleString('es-CO')}
+                </div>
+                <small style={{ color: 'var(--gray-500)', fontSize: '.74rem' }}>Si la respuesta es más extensa, escriba un resumen y adjunte el documento completo en el siguiente paso.</small>
               </div>
               <div className="pqf-field full"><label>Colaborador involucrado en la manifestación</label>
                 <input value={colaborador} onChange={(e) => setColaborador(e.target.value)} placeholder="Nombre del colaborador (si aplica)" />
@@ -361,22 +388,23 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
         {step === 3 && (
           <div className="pqf-step">
             <div className="pqf-step-header"><span className="pqf-step-num">3</span>
-              <div><h2>Documento adjunto</h2><p>Opcional — soporte de la respuesta</p></div>
+              <div><h2>Documentos adjuntos</h2><p>Opcional — soporte o texto completo de la respuesta</p></div>
             </div>
-            {!archivo ? (
+            {archivos.length < MAX_ADJUNTOS && (
               <label className="pqf-file-drop">
                 <span className="ic">📎</span>
-                <span>Haga clic para adjuntar un archivo</span>
-                <small>PDF, DOC, DOCX, TXT, PNG o JPG · máx. 10 MB</small>
-                <input type="file" accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg" onChange={onArchivo} style={{ display: 'none' }} />
+                <span>Haga clic para adjuntar archivos</span>
+                <small>PDF, DOC, DOCX, TXT, PNG o JPG · hasta {MAX_ADJUNTOS} archivos de máx. 10 MB cada uno</small>
+                <input type="file" multiple accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg" onChange={onArchivos} style={{ display: 'none' }} />
               </label>
-            ) : (
-              <div className="pqf-file-preview">
-                <span className="name">{archivo.name}</span>
-                <span className="size">{(archivo.size / 1024).toFixed(0)} KB</span>
-                <button type="button" className="pqf-file-remove" onClick={() => setArchivo(null)}>✕</button>
-              </div>
             )}
+            {archivos.map((a) => (
+              <div key={`${a.name}-${a.size}`} className="pqf-file-preview" style={{ marginTop: 10 }}>
+                <span className="name">{a.name}</span>
+                <span className="size">{formatoTamano(a.size)}</span>
+                <button type="button" className="pqf-file-remove" aria-label={`Quitar ${a.name}`} onClick={() => setArchivos((l) => l.filter((x) => x !== a))} disabled={!!enviando}>✕</button>
+              </div>
+            ))}
             {errores[3] && <p className="pqf-error">⚠ {errores[3]}</p>}
           </div>
         )}
@@ -393,7 +421,7 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
                 ['Correo paciente', reporte.email_reporta || 'No registrado'],
                 ['Fecha de respuesta', fechaRespuesta], ['Respondido por', respondidoPor],
                 ['Correo responsable', correoResponsable || '—'], ['Colaborador involucrado', colaborador || '—'],
-                ['Archivo adjunto', archivo ? `${archivo.name} (${(archivo.size / 1024).toFixed(0)} KB)` : '—'],
+                ['Archivos adjuntos', archivos.length ? archivos.map((a) => `${a.name} (${formatoTamano(a.size)})`).join(', ') : '—'],
               ].map(([label, value]) => (
                 <div key={label} className="pqf-summary-item">
                   <div className="s-label">{label}</div>

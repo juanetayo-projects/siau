@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import { SEMAFORO_CFG, type Semaforo } from '../../lib/pqrsf'
 import { calcularPlazo } from '../../lib/plazoRespuesta'
+import { adjuntosDeRespuesta, formatoTamano, type Adjunto } from '../../lib/adjuntosRespuesta'
 import { PageHeader, FilterBar, Campo, Input, Select, Boton, Tabla, THead, TH, TR, TD, Modal, Spinner, IconoOjo, IconoPapelera } from '../../components/ui'
 import '../../styles/pqrsf-form.css'
 
@@ -18,7 +19,7 @@ const ESTADO_BADGE: Record<string, string> = {
 type Respuesta = {
   id: number; fecha_respuesta: string | null; respuesta: string | null; colaborador: string | null
   respondido_por_nombre: string | null; respondido_por_email: string | null
-  archivo_url: string | null; archivo_nombre: string | null
+  archivo_url: string | null; archivo_nombre: string | null; adjuntos: Adjunto[] | null
 }
 type Evento = { id: number; tipo: 'Abierto' | 'Cerrado'; fecha: string; registrado_por_nombre: string | null }
 type Reporte = {
@@ -120,7 +121,7 @@ export default function GestionPqrsf() {
     const [{ data }, { data: fallas }] = await Promise.all([
       supabase
         .from('reportes_pqrsf')
-        .select('*, respuestas_pqrsf(id,fecha_respuesta,respuesta,colaborador,respondido_por_nombre,respondido_por_email,archivo_url,archivo_nombre)')
+        .select('*, respuestas_pqrsf(id,fecha_respuesta,respuesta,colaborador,respondido_por_nombre,respondido_por_email,archivo_url,archivo_nombre,adjuntos)')
         .order('id', { ascending: false }),
       supabase.from('lista_fallas').select('nombre,color'),
     ])
@@ -305,6 +306,17 @@ export default function GestionPqrsf() {
                 <div className="pqf-record-desc" style={{ background: 'var(--green-lt)', borderLeftColor: 'var(--green)' }}>
                   <div className="pqf-record-label">Texto de la respuesta</div><div className="pqf-record-value">{resp.respuesta}</div>
                 </div>
+                {adjuntosDeRespuesta(resp).length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div className="pqf-record-label">Documentos adjuntos</div>
+                    {adjuntosDeRespuesta(resp).map((a) => (
+                      <a key={a.url} href={a.url} target="_blank" rel="noopener noreferrer" className="pqf-file-preview" style={{ marginTop: 6, textDecoration: 'none' }}>
+                        <span className="name">📎 {a.nombre}</span>
+                        {a.tamano ? <span className="size">{formatoTamano(a.tamano)}</span> : null}
+                      </a>
+                    ))}
+                  </div>
+                )}
               </>
             ) : (
               <div className="pqf-not-found">Este PQRSF aún no tiene respuesta registrada.</div>
