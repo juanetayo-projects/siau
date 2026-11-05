@@ -25,7 +25,6 @@ const ETAPAS = ['Recibida', 'En gestión', 'Respondida', 'Cerrada']
 const PASOS = [
   { icono: '🔍', label: 'Radicado' },
   { icono: '✏️', label: 'Respuesta' },
-  { icono: '📎', label: 'Adjuntos' },
   { icono: '✅', label: 'Resumen' },
 ]
 
@@ -107,7 +106,7 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
     if (!respondidoPor.trim()) return 'Ingrese el nombre del responsable.'
     if (!respuestaTexto.trim()) return 'La respuesta oficial es obligatoria.'
     if (respuestaTexto.length > MAX_RESPUESTA) {
-      return `La respuesta supera los ${MAX_RESPUESTA.toLocaleString('es-CO')} caracteres. Escriba un resumen y adjunte el documento completo en el siguiente paso.`
+      return `La respuesta supera los ${MAX_RESPUESTA.toLocaleString('es-CO')} caracteres. Escriba un resumen y adjunte el documento completo.`
     }
     return ''
   }
@@ -207,7 +206,7 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
       subidos.current.clear()
       setRadicadoFinal(radicado)
       setNotaCorreo(nota)
-      setStep(5)
+      setStep(4)
     } catch (e: any) {
       setErrorEnvio('Error al guardar: ' + (e.message ?? String(e)))
     } finally {
@@ -225,7 +224,7 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
   const cfg = reporte ? (TIPO_CONFIG[reporte.tipo_reporte ?? ''] ?? { color: '#1a4f9b' }) : null
   const etapaIdx = reporte ? ETAPAS.indexOf(reporte.estado ?? 'Recibida') : -1
 
-  if (step === 5) {
+  if (step === 4) {
     return (
       <div className="pqf">
         <div className="pqf-container">
@@ -264,7 +263,7 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
             )
           })}
         </div>
-        <div className="pqf-progress-wrap" style={{ margin: '12px 0 0' }}><div className="pqf-progress-bar" style={{ width: `${(step / 4) * 100}%` }} /></div>
+        <div className="pqf-progress-wrap" style={{ margin: '12px 0 0' }}><div className="pqf-progress-bar" style={{ width: `${(step / PASOS.length) * 100}%` }} /></div>
 
         {step === 1 && (
           <div className="pqf-step">
@@ -375,7 +374,25 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
                 <div className="pqf-char-count" style={respuestaTexto.length > MAX_RESPUESTA ? { color: 'var(--red)', fontWeight: 600 } : undefined}>
                   {respuestaTexto.length.toLocaleString('es-CO')}/{MAX_RESPUESTA.toLocaleString('es-CO')}
                 </div>
-                <small style={{ color: 'var(--gray-500)', fontSize: '.74rem' }}>Si la respuesta es más extensa, escriba un resumen y adjunte el documento completo en el siguiente paso.</small>
+              </div>
+              <div className="pqf-field full"><label>Documentos adjuntos <span style={{ color: 'var(--gray-500)', fontWeight: 400 }}>(opcional)</span></label>
+                <small style={{ color: 'var(--gray-500)', fontSize: '.74rem', marginBottom: 6 }}>Si la respuesta es extensa, escriba un resumen arriba y adjunte aquí el documento completo.</small>
+                {archivos.length < MAX_ADJUNTOS && (
+                  <label className="pqf-file-drop" style={{ display: 'flex' }}>
+                    <span className="ic">📎</span>
+                    <span>Haga clic para adjuntar archivos</span>
+                    <small>PDF, DOC, DOCX, TXT, PNG o JPG · hasta {MAX_ADJUNTOS} archivos de máx. 10 MB cada uno</small>
+                    <input type="file" multiple accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg" onChange={onArchivos} style={{ display: 'none' }} />
+                  </label>
+                )}
+                {archivos.map((a) => (
+                  <div key={`${a.name}-${a.size}`} className="pqf-file-preview" style={{ marginTop: 10 }}>
+                    <span className="name">{a.name}</span>
+                    <span className="size">{formatoTamano(a.size)}</span>
+                    <button type="button" className="pqf-file-remove" aria-label={`Quitar ${a.name}`} onClick={() => setArchivos((l) => l.filter((x) => x !== a))}>✕</button>
+                  </div>
+                ))}
+                {errores[3] && <p className="pqf-error">⚠ {errores[3]}</p>}
               </div>
               <div className="pqf-field full"><label>Colaborador involucrado en la manifestación</label>
                 <input value={colaborador} onChange={(e) => setColaborador(e.target.value)} placeholder="Nombre del colaborador (si aplica)" />
@@ -385,33 +402,9 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
           </div>
         )}
 
-        {step === 3 && (
+        {step === 3 && reporte && (
           <div className="pqf-step">
             <div className="pqf-step-header"><span className="pqf-step-num">3</span>
-              <div><h2>Documentos adjuntos</h2><p>Opcional — soporte o texto completo de la respuesta</p></div>
-            </div>
-            {archivos.length < MAX_ADJUNTOS && (
-              <label className="pqf-file-drop">
-                <span className="ic">📎</span>
-                <span>Haga clic para adjuntar archivos</span>
-                <small>PDF, DOC, DOCX, TXT, PNG o JPG · hasta {MAX_ADJUNTOS} archivos de máx. 10 MB cada uno</small>
-                <input type="file" multiple accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg" onChange={onArchivos} style={{ display: 'none' }} />
-              </label>
-            )}
-            {archivos.map((a) => (
-              <div key={`${a.name}-${a.size}`} className="pqf-file-preview" style={{ marginTop: 10 }}>
-                <span className="name">{a.name}</span>
-                <span className="size">{formatoTamano(a.size)}</span>
-                <button type="button" className="pqf-file-remove" aria-label={`Quitar ${a.name}`} onClick={() => setArchivos((l) => l.filter((x) => x !== a))} disabled={!!enviando}>✕</button>
-              </div>
-            ))}
-            {errores[3] && <p className="pqf-error">⚠ {errores[3]}</p>}
-          </div>
-        )}
-
-        {step === 4 && reporte && (
-          <div className="pqf-step">
-            <div className="pqf-step-header"><span className="pqf-step-num">4</span>
               <div><h2>Resumen de la respuesta</h2><p>Verifique antes de enviar</p></div>
             </div>
             <div className="pqf-summary-grid">
@@ -440,8 +433,8 @@ export default function ResponderPqrsf({ publico }: { publico?: { id: number; to
         <div style={{ padding: '0 28px 28px' }}>
           <div className="pqf-nav">
             {step > 1 ? <button className="pqf-btn pqf-btn-secondary" onClick={anterior} disabled={!!enviando}>← Anterior</button> : <span />}
-            {step < 4 && <button className="pqf-btn pqf-btn-primary" onClick={siguiente}>Siguiente →</button>}
-            {step === 4 && <button className="pqf-btn pqf-btn-primary" onClick={enviar} disabled={!!enviando}>{enviando || (NOTIFICAR_USUARIO ? 'Registrar y notificar' : 'Registrar respuesta')}</button>}
+            {step < 3 && <button className="pqf-btn pqf-btn-primary" onClick={siguiente}>Siguiente →</button>}
+            {step === 3 && <button className="pqf-btn pqf-btn-primary" onClick={enviar} disabled={!!enviando}>{enviando || (NOTIFICAR_USUARIO ? 'Registrar y notificar' : 'Registrar respuesta')}</button>}
           </div>
         </div>
       </div>
