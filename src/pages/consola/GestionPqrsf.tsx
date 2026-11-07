@@ -4,6 +4,7 @@ import { useAuth } from '../../lib/auth'
 import { SEMAFORO_CFG, type Semaforo } from '../../lib/pqrsf'
 import { calcularPlazo } from '../../lib/plazoRespuesta'
 import { adjuntosDeRespuesta, formatoTamano, type Adjunto } from '../../lib/adjuntosRespuesta'
+import { exportarExcel, type ColExport } from '../../lib/exportExcel'
 import { PageHeader, FilterBar, Campo, Input, Select, Boton, Tabla, THead, TH, TR, TD, Modal, Spinner, IconoOjo, IconoPapelera } from '../../components/ui'
 import '../../styles/pqrsf-form.css'
 
@@ -37,17 +38,23 @@ type Reporte = {
 
 const COLOR_PLAZO: Record<string, string> = { verde: '#16a34a', amarillo: '#f59e0b', rojo: '#dc2626', completado: '#64748b' }
 
-function BarraTiempoRespuesta({ r }: { r: Reporte }) {
+function tiempoRespuesta(r: Reporte) {
   const cerrado = r.estado === 'Respondida' || r.estado === 'Cerrada'
   const { diasRestantes, pct, estado } = calcularPlazo(r.dias_habiles, r.fecha_apertura ?? r.created_at?.slice(0, 10), cerrado)
-  if (estado === 'sin_plazo') return <span className="text-xs text-slate-300">—</span>
+  if (estado === 'sin_plazo') return null
 
-  const color = COLOR_PLAZO[estado]
   let texto: string
   if (estado === 'completado') texto = r.estado ?? 'Completado'
   else if (diasRestantes! < 0) texto = `Vencido ${Math.abs(diasRestantes!)}d`
   else if (diasRestantes === 0) texto = 'Vence hoy'
   else texto = `${diasRestantes}d restantes`
+  return { pct, color: COLOR_PLAZO[estado], texto }
+}
+
+function BarraTiempoRespuesta({ r }: { r: Reporte }) {
+  const tiempo = tiempoRespuesta(r)
+  if (!tiempo) return <span className="text-xs text-slate-300">—</span>
+  const { pct, color, texto } = tiempo
 
   return (
     <div className="w-28">
@@ -99,6 +106,46 @@ function FallaBadge({ falla, colores }: { falla: string | null; colores: Record<
   )
 }
 
+// Supabase limita cada consulta (1.000 filas por defecto): sin paginar se perderían registros.
+const TAM_PAGINA = 1000
+
+const normalizar = (t: string) => t.trim().toLowerCase()
+
+// Un reporte guarda sus procesos unidos por ", " y algunos nombres contienen comas,
+// por eso se compara el nombre completo en lugar de separar el texto.
+function tieneProceso(r: Reporte, proceso: string) {
+  return `, ${normalizar(r.proceso ?? '')}, `.includes(`, ${normalizar(proceso)}, `)
+}
+
+const COLUMNAS_EXCEL: ColExport[] = [
+  { header: 'Radicado', key: 'radicado', width: 16 }, { header: 'Tipo', key: 'tipo', width: 14 },
+  { header: 'Estado', key: 'estado', width: 14 }, { header: 'Respondida', key: 'respondida', width: 12 },
+  { header: 'Tiempo de respuesta', key: 'tiempo', width: 18 }, { header: 'Plazo', key: 'plazo', width: 14 },
+  { header: 'Entidad', key: 'entidad', width: 18 }, { header: 'Sede', key: 'sede', width: 18 },
+  { header: 'Proceso', key: 'proceso', width: 32 }, { header: 'Fuente', key: 'fuente', width: 14 },
+  { header: 'Fecha manifestación', key: 'fecha', width: 18 }, { header: 'Paciente', key: 'paciente', width: 26 },
+  { header: 'Identificación', key: 'identificacion', width: 16 }, { header: 'Teléfono', key: 'telefono', width: 14 },
+  { header: 'Correo', key: 'correo', width: 26 }, { header: 'Falla / Atributo', key: 'falla', width: 30 },
+  { header: 'Especialidad', key: 'especialidad', width: 18 }, { header: 'Colaborador', key: 'colaborador', width: 20 },
+  { header: 'Descripción', key: 'descripcion', width: 50 }, { header: 'Fecha respuesta', key: 'fecha_respuesta', width: 16 },
+  { header: 'Respondido por', key: 'respondido_por', width: 22 }, { header: 'Respuesta', key: 'respuesta', width: 50 },
+  { header: 'Documentos adjuntos', key: 'adjuntos', width: 30 },
+]
+
+function filaExcel(r: Reporte) {
+  const resp = r.respuestas_pqrsf?.[0]
+  return {
+    radicado: `PQRSF-${String(r.id).padStart(6, '0')}`, tipo: r.tipo_reporte, estado: r.estado ?? 'Recibida',
+    respondida: resp ? 'Sí' : 'No', tiempo: tiempoRespuesta(r)?.texto ?? '', plazo: r.dias_habiles,
+    entidad: r.entidad, sede: r.sede, proceso: r.proceso, fuente: r.fuente, fecha: r.fecha_manifestacion,
+    paciente: r.nombre_paciente, identificacion: r.numero_identificacion, telefono: r.telefono, correo: r.email_reporta,
+    falla: r.falla_atributo, especialidad: r.especialidad, colaborador: r.colaborador, descripcion: r.descripcion,
+    fecha_respuesta: resp?.fecha_respuesta ?? '', respondido_por: resp?.respondido_por_nombre ?? '', respuesta: resp?.respuesta ?? '',
+    // Solo los nombres: los enlaces abren el documento sin iniciar sesión y el Excel puede circular.
+    adjuntos: resp ? adjuntosDeRespuesta(resp).map((a) => a.nombre).join(', ') : '',
+  }
+}
+
 export default function GestionPqrsf() {
   const { perfil, session } = useAuth()
   const esAdmin = perfil?.rol === 'admin'
@@ -108,6 +155,11 @@ export default function GestionPqrsf() {
   const [fTipo, setFTipo] = useState('')
   const [fEstado, setFEstado] = useState('')
   const [fSede, setFSede] = useState('')
+  const [fProceso, setFProceso] = useState('')
+  const [catalogoProcesos, setCatalogoProcesos] = useState<string[]>([])
+  const [errorCarga, setErrorCarga] = useState('')
+  const [exportando, setExportando] = useState(false)
+  const [errorExport, setErrorExport] = useState('')
   const [fDesde, setFDesde] = useState('')
   const [fHasta, setFHasta] = useState('')
   const [seleccionado, setSeleccionado] = useState<Reporte | null>(null)
@@ -118,21 +170,44 @@ export default function GestionPqrsf() {
 
   async function cargar() {
     setCargando(true)
-    const [{ data }, { data: fallas }] = await Promise.all([
-      supabase
-        .from('reportes_pqrsf')
-        .select('*, respuestas_pqrsf(id,fecha_respuesta,respuesta,colaborador,respondido_por_nombre,respondido_por_email,archivo_url,archivo_nombre,adjuntos)')
-        .order('id', { ascending: false }),
+    setErrorCarga('')
+    const [reportes, { data: fallas }, { data: listaProcesos }] = await Promise.all([
+      cargarReportes(),
       supabase.from('lista_fallas').select('nombre,color'),
+      supabase.from('lista_procesos').select('nombre'),
     ])
-    setRegistros((data ?? []) as Reporte[])
+    setRegistros(reportes)
     setFallaColores(Object.fromEntries((fallas ?? []).map((f: any) => [f.nombre, f.color as Semaforo])))
+    setCatalogoProcesos((listaProcesos ?? []).map((p: any) => p.nombre as string))
     setCargando(false)
   }
   useEffect(() => { void cargar() }, [])
 
+  async function cargarReportes() {
+    const todos: Reporte[] = []
+    for (;;) {
+      const { data, error } = await supabase
+        .from('reportes_pqrsf')
+        .select('*, respuestas_pqrsf(id,fecha_respuesta,respuesta,colaborador,respondido_por_nombre,respondido_por_email,archivo_url,archivo_nombre,adjuntos)')
+        .order('id', { ascending: false })
+        .range(todos.length, todos.length + TAM_PAGINA - 1)
+      if (error) {
+        setErrorCarga(`No se pudieron cargar todos los registros (${error.message}). La lista y el Excel pueden estar incompletos; recargue la página.`)
+        return todos
+      }
+      if (!data?.length) return todos
+      todos.push(...(data as Reporte[]))
+    }
+  }
+
   const tipos = useMemo(() => ([...new Set(registros.map((r) => r.tipo_reporte).filter(Boolean))] as string[]).sort(), [registros])
   const sedes = useMemo(() => ([...new Set(registros.map((r) => r.sede).filter(Boolean))] as string[]).sort(), [registros])
+  // Catálogo más los valores históricos que no coinciden con ningún proceso del catálogo.
+  const procesos = useMemo(() => {
+    const historicos = registros.map((r) => r.proceso).filter((p): p is string => !!p?.trim())
+      .filter((p) => !catalogoProcesos.some((c) => `, ${normalizar(p)}, `.includes(`, ${normalizar(c)}, `)))
+    return [...new Set([...catalogoProcesos, ...historicos])].sort((a, b) => a.localeCompare(b, 'es'))
+  }, [registros, catalogoProcesos])
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
@@ -140,6 +215,7 @@ export default function GestionPqrsf() {
       if (fTipo && r.tipo_reporte !== fTipo) return false
       if (fEstado && r.estado !== fEstado) return false
       if (fSede && r.sede !== fSede) return false
+      if (fProceso && !tieneProceso(r, fProceso)) return false
       if (fDesde && r.fecha_manifestacion && r.fecha_manifestacion < fDesde) return false
       if (fHasta && r.fecha_manifestacion && r.fecha_manifestacion > fHasta) return false
       if (q) {
@@ -150,7 +226,25 @@ export default function GestionPqrsf() {
       }
       return true
     })
-  }, [registros, busqueda, fTipo, fEstado, fSede, fDesde, fHasta])
+  }, [registros, busqueda, fTipo, fEstado, fSede, fProceso, fDesde, fHasta])
+
+  async function exportar() {
+    setExportando(true)
+    try {
+      const filtros = [
+        busqueda.trim() && `Búsqueda: "${busqueda.trim()}"`, fTipo && `Tipo: ${fTipo}`, fEstado && `Estado: ${fEstado}`,
+        fSede && `Sede: ${fSede}`, fProceso && `Proceso: ${fProceso}`, fDesde && `Desde: ${fDesde}`, fHasta && `Hasta: ${fHasta}`,
+      ].filter(Boolean).join(' · ')
+      const fecha = new Date().toLocaleDateString('en-CA') // AAAA-MM-DD en hora local
+      await exportarExcel(`Gestion_PQRSF_${fecha}.xlsx`, 'Gestión PQRSF', COLUMNAS_EXCEL, filtrados.map(filaExcel), {
+        titulo: `Gestión PQRSF — ${filtrados.length.toLocaleString('es-CO')} registros`, filtrosTexto: filtros || undefined,
+      })
+    } catch (e: any) {
+      setErrorExport(e?.message ?? 'No se pudo generar el archivo.')
+    } finally {
+      setExportando(false)
+    }
+  }
 
   async function cargarEventos(reporteId: number) {
     const { data } = await supabase.from('reportes_pqrsf_eventos').select('id,tipo,fecha,registrado_por_nombre')
@@ -195,31 +289,40 @@ export default function GestionPqrsf() {
 
   return (
     <div>
-      <PageHeader titulo="Gestión PQRSF" subtitulo={`${filtrados.length.toLocaleString()} de ${registros.length.toLocaleString()} registros`} />
+      <PageHeader titulo="Gestión PQRSF" subtitulo={`${filtrados.length.toLocaleString()} de ${registros.length.toLocaleString()} registros`}
+        acciones={<Boton onClick={exportar} disabled={cargando || exportando || filtrados.length === 0}>{exportando ? 'Generando…' : '⬇ Exportar a Excel'}</Boton>} />
 
-      <FilterBar>
-        <Campo label="Buscar" className="min-w-56">
-          <Input placeholder="Radicado, paciente, identificación…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+      {/* Todos los filtros en una línea: los selectores se encogen y, en pantallas angostas, la barra se desplaza. */}
+      <FilterBar nowrap>
+        <Campo label="Buscar" className="min-w-[110px] flex-[1.4_1_0%]">
+          <Input className="w-full" placeholder="Radicado, paciente…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
         </Campo>
-        <Campo label="Tipo">
-          <Select value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
+        <Campo label="Tipo" className="min-w-[80px] flex-1">
+          <Select className="w-full" value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
             <option value="">Todos</option>{tipos.map((t) => <option key={t} value={t}>{t}</option>)}
           </Select>
         </Campo>
-        <Campo label="Estado">
-          <Select value={fEstado} onChange={(e) => setFEstado(e.target.value)}>
+        <Campo label="Estado" className="min-w-[80px] flex-1">
+          <Select className="w-full" value={fEstado} onChange={(e) => setFEstado(e.target.value)}>
             <option value="">Todos</option>{ESTADOS.map((t) => <option key={t} value={t}>{t}</option>)}
           </Select>
         </Campo>
-        <Campo label="Sede">
-          <Select value={fSede} onChange={(e) => setFSede(e.target.value)}>
+        <Campo label="Sede" className="min-w-[80px] flex-1">
+          <Select className="w-full" value={fSede} onChange={(e) => setFSede(e.target.value)}>
             <option value="">Todas</option>{sedes.map((t) => <option key={t} value={t}>{t}</option>)}
           </Select>
         </Campo>
-        <Campo label="Desde"><Input type="date" value={fDesde} onChange={(e) => setFDesde(e.target.value)} /></Campo>
-        <Campo label="Hasta"><Input type="date" value={fHasta} onChange={(e) => setFHasta(e.target.value)} /></Campo>
-        <Boton variante="secundario" onClick={() => { setBusqueda(''); setFTipo(''); setFEstado(''); setFSede(''); setFDesde(''); setFHasta('') }}>Limpiar</Boton>
+        <Campo label="Proceso" className="min-w-[110px] flex-[1.4_1_0%]">
+          <Select className="w-full" title={fProceso || undefined} value={fProceso} onChange={(e) => setFProceso(e.target.value)}>
+            <option value="">Todos</option>{procesos.map((t) => <option key={t} value={t}>{t}</option>)}
+          </Select>
+        </Campo>
+        <Campo label="Desde" className="w-[128px] shrink-0"><Input className="w-full" type="date" value={fDesde} onChange={(e) => setFDesde(e.target.value)} /></Campo>
+        <Campo label="Hasta" className="w-[128px] shrink-0"><Input className="w-full" type="date" value={fHasta} onChange={(e) => setFHasta(e.target.value)} /></Campo>
+        <Boton className="shrink-0" variante="secundario" onClick={() => { setBusqueda(''); setFTipo(''); setFEstado(''); setFSede(''); setFProceso(''); setFDesde(''); setFHasta('') }}>Limpiar</Boton>
       </FilterBar>
+
+      {errorCarga && <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{errorCarga}</div>}
 
       {cargando ? <Spinner /> : (
         <Tabla>
@@ -266,6 +369,10 @@ export default function GestionPqrsf() {
           </tbody>
         </Tabla>
       )}
+
+      <Modal open={!!errorExport} onClose={() => setErrorExport('')} titulo="No se pudo exportar a Excel">
+        <p className="text-sm text-slate-600">{errorExport}</p>
+      </Modal>
 
       <Modal open={!!seleccionado} onClose={cerrar} titulo={seleccionado ? `PQRSF-${String(seleccionado.id).padStart(6, '0')}` : ''} ancho="max-w-3xl">
         {seleccionado && (
